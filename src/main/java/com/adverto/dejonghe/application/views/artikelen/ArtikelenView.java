@@ -18,6 +18,7 @@ public class ArtikelenView extends VerticalLayout {
     public ArtikelenView() {
         setSpacing(false);
 
+        //Comment
         Image img = new Image("images/empty-plant.png", "placeholder plant");
         img.setWidth("200px");
         add(img);
