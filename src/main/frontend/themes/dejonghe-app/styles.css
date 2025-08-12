@@ -1,1 +1,22 @@
 @import url('./main-layout.css');
+
+vaadin-button.special {
+    --lumo-primary-text-color: cyan;
+}
+
+vaadin-button{
+    --vaadin-button-background : lightgrey;
+}
+
+vaadin-vertical-layout.blueborder{
+    border: 1px solid blue;
+}
+
+vaadin-horizontal-layout.selected{
+    border: 1px solid blue;
+    background: lightblue;
+}
+
+vaadin-grid::part(option) {
+    background-color: var(--lumo-success-color-10pct);
+}
