@@ -2,7 +2,6 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
-import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
@@ -18,13 +17,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @Scope("prototype")
-public class ToolsFixedPriceView extends VerticalLayout {
+public class ToolsWorkhoursView extends VerticalLayout {
 
     ProductService productService;
     ApplicationEventPublisher eventPublisher;
@@ -32,12 +29,11 @@ public class ToolsFixedPriceView extends VerticalLayout {
     H3 title;
     Tools selectedTool;
     List<Product> selectedProducts;
-    Integer amountWorkhours = 1;
-    TextField tfWorkhours;
+    Integer amountWorkhours = 15;
 
     @Autowired
-    public void ToolsFixedPriceView(ProductService productService,
-                                    ApplicationEventPublisher eventPublisher) {
+    public void ToolsWorkhoursView(ProductService productService,
+                                   ApplicationEventPublisher eventPublisher) {
         this.productService = productService;
         this.eventPublisher = eventPublisher;
 
@@ -54,16 +50,16 @@ public class ToolsFixedPriceView extends VerticalLayout {
     private HorizontalLayout getWorkhoursComponent() {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         horizontalLayout.setSpacing(true);
-        tfWorkhours = new TextField();
-        tfWorkhours.setSuffixComponent(new Span());
+        TextField tfWorkhours = new TextField();
+        tfWorkhours.setSuffixComponent(new Span("Minuten"));
         Button minusButton = new Button(VaadinIcon.MINUS.create());
         minusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours--;
+            amountWorkhours = amountWorkhours-15;
             tfWorkhours.setValue(String.valueOf(amountWorkhours));
                 });
         Button plusButton = new Button(VaadinIcon.PLUS.create());
         plusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours++;
+            amountWorkhours = amountWorkhours+15;
             tfWorkhours.setValue(String.valueOf(amountWorkhours));
         });
         tfWorkhours.setValue(amountWorkhours.toString());
@@ -75,15 +71,14 @@ public class ToolsFixedPriceView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry());
-            if(productListToAdd.isPresent()) {
-                Product productToAdd = productListToAdd.get().getFirst();
-                productToAdd.setVat(VAT.EENENTWINTIG);
-                productToAdd.setDate(LocalDate.now());
-                productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
-                selectedProducts.add(productToAdd);
-                eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
-            }
+            Product productToAdd = new Product();
+            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
+            productToAdd.setInternalName("Minuten : " + selectedTool.getDiscription());
+            selectedProducts.add(productToAdd);
+
+            eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
         });
     }
 
@@ -92,8 +87,6 @@ public class ToolsFixedPriceView extends VerticalLayout {
     }
 
     public void setSelectedTool(Tools selectedTool) {
-        amountWorkhours = 1;
-        tfWorkhours.setValue(String.valueOf(amountWorkhours));
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
     }
@@ -105,5 +98,4 @@ public class ToolsFixedPriceView extends VerticalLayout {
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
     }
-
 }

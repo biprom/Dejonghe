@@ -870,8 +870,8 @@ public class CustomerView extends Div implements BeforeEnterObserver {
         tfDistance = new TextField("Afstand");
         taAddressComment = new TextArea("Commentaar");
         tfRoadTaxAtego = new TextField("Wegentaks Atego");
-        tfRoadTaxActros = new TextField("Wegentaks Actros");
-        tfRoadTaxArocs = new TextField("Wegentaks Arocs");
+        tfRoadTaxActros = new TextField("Wegentaks Oplegger");
+        tfRoadTaxArocs = new TextField("Wegentaks Kraan");
         tfAddressName = new TextField("Naam");
         tfAddressInvoiceMail = new TextField("Facturatie- mail");
 

@@ -2,8 +2,8 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
-import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
+import com.adverto.dejonghe.application.entities.enums.workorder.ToolsLabor;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -12,62 +12,67 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
 import com.vaadin.flow.component.textfield.TextField;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @Scope("prototype")
-public class ToolsFixedPriceView extends VerticalLayout {
+public class ToolsRegularIntenseFuelView extends VerticalLayout {
 
     ProductService productService;
     ApplicationEventPublisher eventPublisher;
 
     H3 title;
+    RadioButtonGroup<String> radioGroup;
     Tools selectedTool;
     List<Product> selectedProducts;
-    Integer amountWorkhours = 1;
-    TextField tfWorkhours;
+    Integer amountFuel = 1;
+    TextField tfFuel;
 
     @Autowired
-    public void ToolsFixedPriceView(ProductService productService,
-                                    ApplicationEventPublisher eventPublisher) {
+    public void ToolsRegularIntenseFuelView(ProductService productService,
+                                            ApplicationEventPublisher eventPublisher) {
         this.productService = productService;
         this.eventPublisher = eventPublisher;
 
         title = new H3();
+        this.setAlignItems(Alignment.CENTER);
+        radioGroup = new RadioButtonGroup<>();
+        radioGroup.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
+        radioGroup.setItems(ToolsLabor.REGULAR.getDiscription(),ToolsLabor.INTENSE.getDiscription());
 
         Button okButton = new Button("Voeg toe");
         setUpOkButton(okButton);
-        this.setAlignItems(Alignment.CENTER);
         this.add(title);
-        this.add(getWorkhoursComponent());
+        add(radioGroup);
+        add(getFuelComponent());
         this.add(okButton);
     }
 
-    private HorizontalLayout getWorkhoursComponent() {
+    private HorizontalLayout getFuelComponent() {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         horizontalLayout.setSpacing(true);
-        tfWorkhours = new TextField();
-        tfWorkhours.setSuffixComponent(new Span());
+        tfFuel = new TextField();
         Button minusButton = new Button(VaadinIcon.MINUS.create());
         minusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours--;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
-                });
+                amountFuel--;
+                tfFuel.setValue(amountFuel.toString());
+            });
         Button plusButton = new Button(VaadinIcon.PLUS.create());
         plusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours++;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
+            amountFuel++;
+            tfFuel.setValue(amountFuel.toString());
         });
-        tfWorkhours.setValue(amountWorkhours.toString());
-        horizontalLayout.add(minusButton, tfWorkhours,  plusButton);
+        tfFuel.setSuffixComponent(new Span("liter brandstof"));
+        tfFuel.setValue(amountFuel.toString());
+        horizontalLayout.add(minusButton, tfFuel,  plusButton);
         return horizontalLayout;
     }
 
@@ -75,15 +80,18 @@ public class ToolsFixedPriceView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry());
-            if(productListToAdd.isPresent()) {
-                Product productToAdd = productListToAdd.get().getFirst();
-                productToAdd.setVat(VAT.EENENTWINTIG);
-                productToAdd.setDate(LocalDate.now());
-                productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
-                selectedProducts.add(productToAdd);
-                eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
-            }
+            Product productToAdd = new Product();
+            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd.setSelectedAmount(1.0);
+            productToAdd.setInternalName(selectedTool.getDiscription() + " "+ radioGroup.getValue());
+            Product productToAdd2 = new Product();
+            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd2.setSelectedAmount(Double.valueOf(amountFuel));
+            productToAdd2.setInternalName("Brandstof");
+            selectedProducts.add(productToAdd);
+            selectedProducts.add(productToAdd2);
+
+            eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
         });
     }
 
@@ -92,8 +100,8 @@ public class ToolsFixedPriceView extends VerticalLayout {
     }
 
     public void setSelectedTool(Tools selectedTool) {
-        amountWorkhours = 1;
-        tfWorkhours.setValue(String.valueOf(amountWorkhours));
+        amountFuel = 1;
+        tfFuel.setValue(amountFuel.toString());
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
     }
@@ -105,5 +113,4 @@ public class ToolsFixedPriceView extends VerticalLayout {
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
     }
-
 }

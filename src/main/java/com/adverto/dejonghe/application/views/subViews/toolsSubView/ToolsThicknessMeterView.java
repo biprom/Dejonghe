@@ -2,7 +2,6 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
-import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
@@ -18,13 +17,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @Scope("prototype")
-public class ToolsFixedPriceView extends VerticalLayout {
+public class ToolsThicknessMeterView extends VerticalLayout {
 
     ProductService productService;
     ApplicationEventPublisher eventPublisher;
@@ -32,12 +29,15 @@ public class ToolsFixedPriceView extends VerticalLayout {
     H3 title;
     Tools selectedTool;
     List<Product> selectedProducts;
-    Integer amountWorkhours = 1;
-    TextField tfWorkhours;
+    Integer depth = 1;
+    Integer meters = 1;
+
+    TextField tfThickness;
+    TextField tfRunningMeter;
 
     @Autowired
-    public void ToolsFixedPriceView(ProductService productService,
-                                    ApplicationEventPublisher eventPublisher) {
+    public void ToolsThicknessMeterView(ProductService productService,
+                                        ApplicationEventPublisher eventPublisher) {
         this.productService = productService;
         this.eventPublisher = eventPublisher;
 
@@ -45,29 +45,52 @@ public class ToolsFixedPriceView extends VerticalLayout {
 
         Button okButton = new Button("Voeg toe");
         setUpOkButton(okButton);
+
         this.setAlignItems(Alignment.CENTER);
         this.add(title);
-        this.add(getWorkhoursComponent());
+        this.add(getThicknessComponent());
+        this.add(getRunningMetersComponent());
         this.add(okButton);
     }
 
-    private HorizontalLayout getWorkhoursComponent() {
+    private HorizontalLayout getThicknessComponent() {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         horizontalLayout.setSpacing(true);
-        tfWorkhours = new TextField();
-        tfWorkhours.setSuffixComponent(new Span());
+        tfThickness = new TextField();
         Button minusButton = new Button(VaadinIcon.MINUS.create());
         minusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours--;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
+            depth--;
+            tfThickness.setValue(String.valueOf(depth));
                 });
         Button plusButton = new Button(VaadinIcon.PLUS.create());
         plusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours++;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
+            depth++;
+            tfThickness.setValue(String.valueOf(depth));
         });
-        tfWorkhours.setValue(amountWorkhours.toString());
-        horizontalLayout.add(minusButton, tfWorkhours,  plusButton);
+
+        tfThickness.setSuffixComponent(new Span("Diepte [cm]"));
+        tfThickness.setValue(depth.toString());
+        horizontalLayout.add(minusButton, tfThickness,  plusButton);
+        return horizontalLayout;
+    }
+
+    private HorizontalLayout getRunningMetersComponent() {
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setSpacing(true);
+        tfRunningMeter = new TextField();
+        Button minusButton = new Button(VaadinIcon.MINUS.create());
+        minusButton.addClickListener(buttonClickEvent ->{
+            meters--;
+            tfRunningMeter.setValue(String.valueOf(meters));
+                });
+        Button plusButton = new Button(VaadinIcon.PLUS.create());
+        plusButton.addClickListener(buttonClickEvent ->{
+            meters++;
+            tfRunningMeter.setValue(String.valueOf(meters));
+        });
+        tfRunningMeter.setSuffixComponent(new Span("Lopende meter [m]"));
+        tfRunningMeter.setValue(meters.toString());
+        horizontalLayout.add(minusButton, tfRunningMeter,  plusButton);
         return horizontalLayout;
     }
 
@@ -75,15 +98,13 @@ public class ToolsFixedPriceView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry());
-            if(productListToAdd.isPresent()) {
-                Product productToAdd = productListToAdd.get().getFirst();
-                productToAdd.setVat(VAT.EENENTWINTIG);
-                productToAdd.setDate(LocalDate.now());
-                productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
-                selectedProducts.add(productToAdd);
-                eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
-            }
+            Product productToAdd = new Product();
+            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd.setSelectedAmount(Double.valueOf(meters));
+            productToAdd.setInternalName(selectedTool.getDiscription() + " diepte [cm] : " + depth + " aantal meter : " + meters );
+            selectedProducts.add(productToAdd);
+
+            eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
         });
     }
 
@@ -92,8 +113,10 @@ public class ToolsFixedPriceView extends VerticalLayout {
     }
 
     public void setSelectedTool(Tools selectedTool) {
-        amountWorkhours = 1;
-        tfWorkhours.setValue(String.valueOf(amountWorkhours));
+        depth = 1;
+        tfThickness.setValue(depth.toString());
+        meters = 1;
+        tfRunningMeter.setValue(meters.toString());
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
     }
@@ -105,5 +128,4 @@ public class ToolsFixedPriceView extends VerticalLayout {
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
     }
-
 }

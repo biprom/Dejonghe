@@ -54,7 +54,6 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer;
 import com.vaadin.flow.component.virtuallist.VirtualList;
 import com.vaadin.flow.data.binder.Binder;
-import com.vaadin.flow.data.binder.ErrorLevel;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.converter.StringToDoubleConverter;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -1306,7 +1305,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             Set<Product> collect = selectedWorkOrder.getProductList().stream().filter(item -> {
                 if(item.getAbbreviation() != null){
                     return item.getAbbreviation()
-                            .matches(tool.getAbbreviation());
+                            .matches(tool.getAbbreviationIndustry());
                 }
                 else{
                     return false;

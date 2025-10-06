@@ -2,7 +2,6 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
-import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
@@ -18,13 +17,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 @Scope("prototype")
-public class ToolsFixedPriceView extends VerticalLayout {
+public class ToolsFuelView extends VerticalLayout {
 
     ProductService productService;
     ApplicationEventPublisher eventPublisher;
@@ -32,58 +29,61 @@ public class ToolsFixedPriceView extends VerticalLayout {
     H3 title;
     Tools selectedTool;
     List<Product> selectedProducts;
-    Integer amountWorkhours = 1;
-    TextField tfWorkhours;
+    Integer amountFuel = 1;
+    TextField tfFuel;
 
     @Autowired
-    public void ToolsFixedPriceView(ProductService productService,
-                                    ApplicationEventPublisher eventPublisher) {
+    public void ToolsFuelView(ProductService productService,
+                              ApplicationEventPublisher eventPublisher) {
         this.productService = productService;
         this.eventPublisher = eventPublisher;
 
         title = new H3();
+        this.setAlignItems(Alignment.CENTER);
 
         Button okButton = new Button("Voeg toe");
         setUpOkButton(okButton);
-        this.setAlignItems(Alignment.CENTER);
         this.add(title);
-        this.add(getWorkhoursComponent());
+        add(getFuelComponent());
         this.add(okButton);
     }
 
-    private HorizontalLayout getWorkhoursComponent() {
+    private HorizontalLayout getFuelComponent() {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         horizontalLayout.setSpacing(true);
-        tfWorkhours = new TextField();
-        tfWorkhours.setSuffixComponent(new Span());
+        tfFuel = new TextField();
         Button minusButton = new Button(VaadinIcon.MINUS.create());
         minusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours--;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
+            amountFuel--;
+            tfFuel.setValue(amountFuel.toString());
                 });
         Button plusButton = new Button(VaadinIcon.PLUS.create());
         plusButton.addClickListener(buttonClickEvent ->{
-            amountWorkhours++;
-            tfWorkhours.setValue(String.valueOf(amountWorkhours));
+            amountFuel++;
+            tfFuel.setValue(amountFuel.toString());
         });
-        tfWorkhours.setValue(amountWorkhours.toString());
-        horizontalLayout.add(minusButton, tfWorkhours,  plusButton);
+
+        tfFuel.setSuffixComponent(new Span("liter brandstof"));
+        tfFuel.setValue(amountFuel.toString());
+
+        horizontalLayout.add(minusButton, tfFuel,  plusButton);
         return horizontalLayout;
     }
 
     private void setUpOkButton(Button okButton) {
-        okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        okButton.setWidth("100%");
+        okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_TERTIARY);
         okButton.addClickListener(e -> {
-            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry());
-            if(productListToAdd.isPresent()) {
-                Product productToAdd = productListToAdd.get().getFirst();
-                productToAdd.setVat(VAT.EENENTWINTIG);
-                productToAdd.setDate(LocalDate.now());
-                productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
-                selectedProducts.add(productToAdd);
-                eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
-            }
+            Product productToAdd = new Product();
+            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd.setSelectedAmount(Double.valueOf(amountFuel));
+            productToAdd.setInternalName("Brandstof : " + selectedTool.getDiscription());
+            selectedProducts.add(productToAdd);
+            Product productToAdd2 = new Product();
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd2.setSelectedAmount(Double.valueOf(amountFuel));
+            productToAdd2.setInternalName("Forfait : " + selectedTool.getDiscription());
+            selectedProducts.add(productToAdd2);
+            eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
         });
     }
 
@@ -92,9 +92,9 @@ public class ToolsFixedPriceView extends VerticalLayout {
     }
 
     public void setSelectedTool(Tools selectedTool) {
-        amountWorkhours = 1;
-        tfWorkhours.setValue(String.valueOf(amountWorkhours));
-        title.setText(selectedTool.getDiscription() + " toevoegen?");
+        amountFuel = 1;
+        tfFuel.setValue(amountFuel.toString());
+        title.setText(selectedTool.getDiscription() + " selecteren?");
         this.selectedTool = selectedTool;
     }
 
@@ -105,5 +105,4 @@ public class ToolsFixedPriceView extends VerticalLayout {
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
     }
-
 }
