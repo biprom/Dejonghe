@@ -1,14 +1,9 @@
 package com.adverto.dejonghe.application.entities.invoice;
 
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
-import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderHeader;
 import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Customer;
-import com.adverto.dejonghe.application.entities.employee.Employee;
 import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkLocation;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkOrderStatus;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkType;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import jakarta.persistence.Id;
 import lombok.Getter;
@@ -30,12 +25,15 @@ public class Invoice {
 
     Integer invoiceNumber;
     Customer customer;
-    Address invoiceAddress;
+    Address workAddress;
     LocalDate invoiceDate;
     InvoiceStatus invoiceStatus;
     String discription;
+    Boolean toCheck;
+    Boolean bApproved;
+    Boolean bRejected;
 
-    List<WorkOrder> workOrderList;
+    Set<WorkOrder> workOrderList;
 
     List<Product>productList;
 

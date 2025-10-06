@@ -1,11 +1,8 @@
 package com.adverto.dejonghe.application.views.subViews;
 
 import com.adverto.dejonghe.application.dbservices.WorkOrderService;
-import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.images.ImageEntity;
-import com.adverto.dejonghe.application.entities.invoice.Invoice;
 import com.adverto.dejonghe.application.services.ImageService;
-import com.mongodb.client.gridfs.model.GridFSFile;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -16,9 +13,6 @@ import com.vaadin.flow.server.StreamResource;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;

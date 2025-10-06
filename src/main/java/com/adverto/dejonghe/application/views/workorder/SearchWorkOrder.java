@@ -205,6 +205,9 @@ public class SearchWorkOrder extends Div implements BeforeEnterObserver {
         workOrderHeaderBinder = new Binder<>(WorkOrderHeader.class);
         workOrderHeaderBinder.forField(taDiscription)
                 .bind(WorkOrderHeader::getDiscription, WorkOrderHeader::setDiscription);
+        workOrderHeaderBinder.forField(typeComboBox)
+                .asRequired("Gelieve een werktype te selecteren!")
+                .bind(WorkOrderHeader::getWorkType, WorkOrderHeader::setWorkType);
 //        workOrderHeaderBinder.forField(timePickerUpTeam1)
 //                .bind(WorkOrderHeader::getTimeUp, WorkOrderHeader::setTimeUp);
 //        workOrderHeaderBinder.forField(timePickerStartTeam1)
@@ -252,9 +255,6 @@ public class SearchWorkOrder extends Div implements BeforeEnterObserver {
         workOrderBinder.forField(locationComboBox)
                 .asRequired("Gelieve een werkplaats te selecteren!")
                 .bind(WorkOrder::getWorkLocation, WorkOrder::setWorkLocation);
-        workOrderBinder.forField(typeComboBox)
-                .asRequired("Gelieve een werktype te selecteren!")
-                .bind(WorkOrder::getWorkType, WorkOrder::setWorkType);
         workOrderBinder.forField(cbMasterEmployee1)
                 .withNullRepresentation(cbMasterEmployee1.getEmptyValue())
                 .asRequired("Gelieve een verantwoordelijke te selecteren!")
@@ -807,7 +807,7 @@ public class SearchWorkOrder extends Div implements BeforeEnterObserver {
                 Avatar avatar = new Avatar(tool.getDiscription());
                 avatar.setHeight("64px");
                 avatar.setWidth("64px");
-                avatar.setAbbreviation(tool.getAbbreviation());
+                //avatar.setAbbreviation(tool.getDiscription());
 
                 VerticalLayout infoLayout = new VerticalLayout();
                 infoLayout.add(new Text("Extras"));
@@ -817,18 +817,18 @@ public class SearchWorkOrder extends Div implements BeforeEnterObserver {
                         ElementFactory.createStrong(tool.getDiscription()));
                 //infoLayout.add(new Div(new Text(tool.getComment())));
 
-                VerticalLayout selectionLayout = new VerticalLayout();
-                selectionLayout.setSpacing(false);
-                selectionLayout.setPadding(false);
-                selectionLayout.add(new Div(new Text(tool.getComment1())));
-                selectionLayout.add(new Div(new TextField()));
-                if(tool.getComment2() != null){
-                    selectionLayout.add(new Div(new Text(tool.getComment2())));
-                    selectionLayout.add(new Div(new TextField()));
-                }
-                selectionLayout.add(new Div(new Button("Bewaar")));
-                infoLayout
-                        .add(new Details("Selectie", selectionLayout));
+//                VerticalLayout selectionLayout = new VerticalLayout();
+//                selectionLayout.setSpacing(false);
+//                selectionLayout.setPadding(false);
+//                selectionLayout.add(new Div(new Text(tool.getComment1())));
+//                selectionLayout.add(new Div(new TextField()));
+//                if(tool.getComment2() != null){
+//                    selectionLayout.add(new Div(new Text(tool.getComment2())));
+//                    selectionLayout.add(new Div(new TextField()));
+//                }
+//                selectionLayout.add(new Div(new Button("Bewaar")));
+//                infoLayout
+//                        .add(new Details("Selectie", selectionLayout));
 
                 cardLayout.add(avatar, infoLayout);
                 return cardLayout;

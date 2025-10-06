@@ -1,15 +1,16 @@
 package com.adverto.dejonghe.application.views.subViews;
 
+import com.adverto.dejonghe.application.customEvents.GetSelectedWorkOrderEvent;
 import com.adverto.dejonghe.application.customEvents.ReloadProductListEvent;
 import com.adverto.dejonghe.application.dbservices.WorkOrderService;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
 import com.vaadin.flow.component.Text;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -29,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,7 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
     Notification detachWorkorderNotification;
 
     UserFunction userFunction = UserFunction.TECHNICIAN;
+    Grid.Column<WorkOrder> columnDetach;
 
 
     @Autowired
@@ -126,6 +129,10 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
         pendingWorkOrdersGrid = new TreeGrid<>();
         treeData = new TreeData<>();
         Grid.Column<WorkOrder> columnAddress = pendingWorkOrdersGrid.addHierarchyColumn(workOrder -> workOrder.getWorkAddress().getAddressName()).setHeader("Naam").setAutoWidth(true);
+        pendingWorkOrdersGrid.addColumn(workorder -> workorder.getWorkDateTime().toLocalDate().format(
+                DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                ))
+                .setHeader("Datum").setAutoWidth(true);
         Grid.Column<WorkOrder> columnSubject = pendingWorkOrdersGrid.addComponentColumn(workOrder -> {
             TextArea textArea = new TextArea();
             textArea.setWidth("100%");
@@ -135,18 +142,20 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
             return textArea;
         }).setHeader("Omschrijving").setAutoWidth(true);
         Grid.Column<WorkOrder> columnResponsible = pendingWorkOrdersGrid.addColumn(workOrder -> getActiveMasterEmployees(workOrder)).setHeader("Verantwoordelijke").setAutoWidth(true);
-        pendingWorkOrdersGrid.addColumn(workorder -> workorder.getWorkDateTime().toLocalDate())
-                .setHeader("Werkdag").setAutoWidth(true);
-
-        Grid.Column<WorkOrder> columnDetach = pendingWorkOrdersGrid.addComponentColumn(item -> {
-            Button closeButton = new Button(VaadinIcon.CONNECT.create());
-            closeButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
-            closeButton.setAriaLabel("Ontkoppel werkbon");
-            closeButton.addClickListener(event -> {
-                selectedWorkOrder = item;
-                detachWorkorderNotification.open();
-            });
-            return closeButton;
+            columnDetach = pendingWorkOrdersGrid.addComponentColumn(item -> {
+                if((!item.getStarter()) || (item.getLinkedWorkOrders() != null && item.getLinkedWorkOrders().size() > 0)){
+                    Button closeButton = new Button(VaadinIcon.CONNECT.create());
+                    closeButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
+                    closeButton.setAriaLabel("Ontkoppel werkbon");
+                    closeButton.addClickListener(event -> {
+                        selectedWorkOrder = item;
+                        detachWorkorderNotification.open();
+                    });
+                    return closeButton;
+                }
+                else{
+                    return new Span("");
+                }
         }).setHeader("Ontkoppel").setAutoWidth(true);
 
         pendingWorkOrdersGrid.addComponentColumn(item -> {
@@ -159,13 +168,15 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
             });
             return closeButton;
         }).setHeader("Verwijder").setAutoWidth(true);
+
         pendingWorkOrdersGrid.addItemClickListener(event -> {
             selectedWorkOrder = treeData.getParent(event.getItem());
             if (selectedWorkOrder == null) {
                 //if no parent then selected WorkOrder is the parent!
                 selectedWorkOrder = event.getItem();
-                UI.getCurrent().getPage().executeJs("window.open($0, '_blank')", "/werkbon/"+event.getItem().getId());
+                //UI.getCurrent().getPage().executeJs("window.open($0, '_blank')", "/werkbon/"+event.getItem().getId());
             }
+            eventPublisher.publishEvent(new GetSelectedWorkOrderEvent(this, selectedWorkOrder));
         });
 
         headerRow = pendingWorkOrdersGrid.appendHeaderRow();
@@ -407,9 +418,11 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
         this.userFunction = userFunction;
         if(this.userFunction.compareTo(UserFunction.ADMIN)==0 ){
             pendingWorkOrdersGrid.setSelectionMode(Grid.SelectionMode.MULTI);
+            columnDetach.setVisible(true);
         }
         else{
             pendingWorkOrdersGrid.setSelectionMode(Grid.SelectionMode.SINGLE);
+            columnDetach.setVisible(false);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.adverto.dejonghe.application.entities.enums.invoice;
 
 public enum InvoiceStatus {
+    PROFORMA("Proforma"),
     AANGEMAAKT("Aangemaakt"),
     TO_CHECK ("Te controleren"),
     SENT ("Verstuurd"),

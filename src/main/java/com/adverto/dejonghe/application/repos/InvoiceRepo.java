@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface InvoiceRepo extends MongoRepository<Invoice, String> {
     List<Invoice>findInvoiceByInvoiceNumber(String invoiceNumber);
+    Invoice findInvoiceById(String workOrderId);
     List<Invoice>findInvoiceByInvoiceStatus(InvoiceStatus invoiceStatus);
     Optional<Invoice> findTopByOrderByInvoiceNumberDesc();
 }

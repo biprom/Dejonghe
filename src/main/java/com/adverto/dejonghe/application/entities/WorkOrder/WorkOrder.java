@@ -25,7 +25,6 @@ public class WorkOrder {
     Address workAddress;
     LocalDateTime workDateTime;
     WorkLocation workLocation;
-    WorkType workType;
     WorkOrderStatus workOrderStatus;
 
     Employee masterEmployeeTeam1;

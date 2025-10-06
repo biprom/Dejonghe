@@ -2,11 +2,11 @@ package com.adverto.dejonghe.application.entities.enums.fleet;
 
 public enum Fleet {
     VAN ("Bestelwagen"),
-    VAN_TRAILER   ("Bestelwagen + aanhangwagen"),
+    //VAN_TRAILER   ("Bestelwagen + aanhangwagen"),
     ATEGO ("Atego"),
-    TRUCK_TRAILER("Truck + aanhangwagen"),
-    TRUCK_LOWLOADER("Truck + dieplader"),
-    TRUCK_CRANE("Kraan vrachtwagen");
+    TRUCK_TRAILER("Oplegger"),
+    //TRUCK_LOWLOADER("Truck + dieplader"),
+    TRUCK_CRANE("Kraanvrachtwagen");
 
     private final String discription;
 

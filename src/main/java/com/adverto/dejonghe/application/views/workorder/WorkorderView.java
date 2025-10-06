@@ -1,11 +1,11 @@
 package com.adverto.dejonghe.application.views.workorder;
 
-import com.adverto.dejonghe.application.components.CustomTab;
 import com.adverto.dejonghe.application.customEvents.AddProductEventListener;
 import com.adverto.dejonghe.application.dbservices.CustomerService;
 import com.adverto.dejonghe.application.dbservices.EmployeeService;
 import com.adverto.dejonghe.application.dbservices.ProductService;
 import com.adverto.dejonghe.application.dbservices.WorkOrderService;
+import com.adverto.dejonghe.application.entities.WorkOrder.BowlEntity;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderHeader;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderTime;
@@ -13,29 +13,26 @@ import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.employee.Employee;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
 import com.adverto.dejonghe.application.entities.enums.fleet.Fleet;
-import com.adverto.dejonghe.application.entities.enums.fleet.FleetTruckCraneOptions;
 import com.adverto.dejonghe.application.entities.enums.fleet.FleetWorkType;
 import com.adverto.dejonghe.application.entities.enums.product.VAT;
-import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkLocation;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkOrderStatus;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkType;
+import com.adverto.dejonghe.application.entities.enums.workorder.*;
 import com.adverto.dejonghe.application.entities.product.product.Product;
+import com.adverto.dejonghe.application.services.workorder.WorkOrderServices;
 import com.adverto.dejonghe.application.views.subViews.CurrentWorkOrdersSubView;
 import com.adverto.dejonghe.application.views.subViews.SelectProductSubView;
 import com.adverto.dejonghe.application.views.subViews.ShowImageSubVieuw;
+import com.adverto.dejonghe.application.views.subViews.toolsSubView.*;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBObject;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.avatar.Avatar;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
-import com.vaadin.flow.component.datetimepicker.DateTimePicker;
-import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -50,7 +47,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.timepicker.TimePicker;
@@ -58,6 +54,7 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MultiFileMemoryBuffer;
 import com.vaadin.flow.component.virtuallist.VirtualList;
 import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.binder.ErrorLevel;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.converter.StringToDoubleConverter;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -65,7 +62,6 @@ import com.vaadin.flow.dom.ElementFactory;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.router.Menu;
 import jakarta.annotation.PostConstruct;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.mongodb.gridfs.GridFsTemplate;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
@@ -74,7 +70,9 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -89,11 +87,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     ProductService productService;
     SelectProductSubView selectProductSubView;
     WorkOrderService workOrderService;
+    WorkOrderServices workOrderServices;
     GridFsTemplate gridFsTemplate;
     CurrentWorkOrdersSubView currtentWorkOrdersSubVieuw;
     ShowImageSubVieuw showImageSubVieuw;
     AddProductEventListener addProductEventListener;
-    ApplicationEventPublisher eventPublisher;
+    ToolsFuelView toolsFuelView;
+    ToolsOkSubView toolsOkSubView;
+    ToolsPTAView  toolsPTAView;
+    ToolsRegularIntenseFuelView toolsRegularIntenseFuelView;
+    ToolsRegularIntenseView toolsRegularIntenseView;
+    ToolsSpyLaneView toolsSpyLaneView;
+    ToolsThicknessMeterView toolsThicknessMeterView;
+    ToolsWorkhoursView toolsWorkhoursView;
+    ToolsFixedPriceView toolsFixedPriceView;
 
     SplitLayout mainSplitLayout;
     SplitLayout headerSplitLayout;
@@ -101,7 +108,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     FormLayout formLayout;
 
     ComboBox<Address> addressComboBox = new ComboBox<>();
-    DateTimePicker dateTimePicker = new DateTimePicker();
+    DatePicker datePicker = new DatePicker();
     ComboBox<WorkLocation> locationComboBox = new ComboBox<>();
     ComboBox<WorkType> typeComboBox = new ComboBox<>();
 
@@ -121,8 +128,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     List<WorkOrderTime>selectedWorkOrderTimes;
     WorkOrderTime selectedWorkOrderTime;
 
+    Grid<BowlEntity>bowlGrid;
+    List<BowlEntity>selectedBowlEntities;
+    BowlEntity selectedBowlEntity;
+
     ComboBox<Fleet> fleetComboBox = new ComboBox<>();
-    ComboBox<FleetTruckCraneOptions> fleetOptions = new ComboBox<>();
+    TextField tfFleetHours = new TextField();
     TextField tfRoadTax = new TextField();
     TextField tfTunnelTax = new TextField();
     ComboBox<FleetWorkType> fleetWorkTypeComboBox = new ComboBox<>();
@@ -131,6 +142,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     Upload dropEnabledUpload = new Upload(buffer);
     Button showImageButton;
 
+    Button saveWorkOrderButton = new Button("Bewaar werkbon");
     Button finishButton = new Button("Stuur door facturatie");
 
     VerticalLayout vLayoutHeaderLevel2Tabs;
@@ -140,6 +152,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     VerticalLayout vLayoutHeaderLevel6Tabs;
     VerticalLayout vLayoutHeaderLevel7Tabs;
     VerticalLayout vLayoutHeaderLevel8Tabs;
+
+    VerticalLayout level5VerticalLayout;
 
     Integer selectedTeam = 1;
 
@@ -151,40 +165,85 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     Dialog finishWorkOrderDialog;
     Dialog searchCurrentWorkOrderDialog;
     Dialog removeWorkOrderHourDialog;
+    Dialog removeBowlDialog;
     Dialog imageDialog;
+    Dialog errorDialog;
 
     Tabs buddyTab;
     Button addTabButton;
 
     String linkParameter;
 
+    Grid.Column<WorkOrderTime> upColumn;
+    Grid.Column<WorkOrderTime> downColumn;
+    Grid.Column<WorkOrderTime> overNightColumn;
+
+    Dialog optionDialog;
+
+    TimePicker timeUpPicker;
+    TimePicker timeStartPicker;
+    TimePicker timeStopPicker;
+    TimePicker timeDownPicker;
+
+    List<String>errorList = new ArrayList<>();
+    VerticalLayout errorDialogVerticalLayout;
+    VerticalLayout errorDialogErrorsVerticalLayout;
+
+    Grid.Column<BowlEntity> chassisNrColumn;
+    Grid.Column<BowlEntity> bowlNrEntityColumnIn;
+    Grid.Column<BowlEntity> bowlInColumn;
+    Grid.Column<BowlEntity> bowlNrEntityColumnUit;
+    Grid.Column<BowlEntity> bowlUitColumn;
+    Grid.Column<BowlEntity> draaiurenColumn;
+
     public WorkorderView(ProductService productService,
                          CustomerService customerService,
                          EmployeeService employeeService,
                          SelectProductSubView selectProductSubView,
                          WorkOrderService workOrderService,
+                         WorkOrderServices workOrderServices,
                          GridFsTemplate gridFsTemplate,
                          CurrentWorkOrdersSubView currtentWorkOrdersSubVieuw,
                          ShowImageSubVieuw showImageSubVieuw,
                          AddProductEventListener listener,
-                         ApplicationEventPublisher eventPublisher) {
+                         ToolsFuelView toolsFuelView,
+                         ToolsOkSubView toolsOkSubView,
+                         ToolsPTAView toolsPTAView,
+                         ToolsRegularIntenseFuelView toolsRegularIntenseFuelView,
+                         ToolsRegularIntenseView toolsRegularIntenseView,
+                         ToolsSpyLaneView toolsSpyLaneView,
+                         ToolsThicknessMeterView toolsThicknessMeterView,
+                         ToolsWorkhoursView toolsWorkhoursView,
+                         ToolsFixedPriceView toolsFixedPriceView) {
         this.productService = productService;
         this.selectProductSubView = selectProductSubView;
         this.customerService = customerService;
         this.employeeService = employeeService;
         this.workOrderService = workOrderService;
+        this.workOrderServices = workOrderServices;
         this.gridFsTemplate = gridFsTemplate;
         this.currtentWorkOrdersSubVieuw = currtentWorkOrdersSubVieuw;
         this.showImageSubVieuw = showImageSubVieuw;
         this.addProductEventListener = listener;
-        this.eventPublisher = eventPublisher;
+        this.toolsFuelView = toolsFuelView;
+        this.toolsOkSubView = toolsOkSubView;
+        this.toolsRegularIntenseFuelView = toolsRegularIntenseFuelView;
+        this.toolsRegularIntenseView = toolsRegularIntenseView;
+        this.toolsSpyLaneView = toolsSpyLaneView;
+        this.toolsThicknessMeterView = toolsThicknessMeterView;
+        this.toolsWorkhoursView = toolsWorkhoursView;
+        this.toolsPTAView = toolsPTAView;
+        this.toolsFixedPriceView = toolsFixedPriceView;
+
 
         selectProductSubView.setUserFunction(UserFunction.TECHNICIAN);
         setUpImageDialog();
         setUpCurrentWorkOrderDialog();
         setUpFinishWorkOrderDialog();
         setUpRemoveWorkOrderHour();
+        setUpRemoveBowlDialog();
         setUpFinishButton();
+        setUpSaveButton();
         setUpUpload();
         setUpShowImageButton();
         setUpSplitLayouts();
@@ -197,13 +256,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         formLayout.add(vLayoutHeaderLevel7Tabs,2);
         formLayout.add(vLayoutHeaderLevel8Tabs,2);
         VerticalLayout verticalLayout = new VerticalLayout();
+        verticalLayout.setMargin(false);
         verticalLayout.setWidth("100%");
         verticalLayout.add(getMainButtons(),formLayout);
-        verticalLayout.addClassName("blueborder");
         headerSplitLayout.addToPrimary(verticalLayout);
         VerticalLayout vLayout = new VerticalLayout();
         vLayout.add(selectProductSubView.getFilter());
         vLayout.add(selectProductSubView.getSelectedProductGrid());
+        HorizontalLayout hLayout = new HorizontalLayout();
+        hLayout.setWidth("100%");
+        hLayout.add(dropEnabledUpload,showImageButton);
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setWidth("100%");
+        horizontalLayout.add(saveWorkOrderButton,finishButton);
+        vLayout.add(hLayout,horizontalLayout);
         headerSplitLayout.addToSecondary(vLayout);
         mainSplitLayout.addToPrimary(selectProductSubView.getLayout());
         mainSplitLayout.addToSecondary(headerSplitLayout);
@@ -211,7 +277,44 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         add(mainSplitLayout);
         setUpWorkOrderBinder();
         setUpWorkOrderHeaderBinder();
+        setUpSpinnerGrid();
         setUpTimeGrid();
+        setUpErrorDialog();
+    }
+
+    private void setUpErrorDialog() {
+        errorDialog = new Dialog();
+        errorDialog.setWidth("100%");
+        errorDialog.setHeight("30%");
+        errorDialog.setDraggable(true);
+        createLayoutErrorDialog(errorDialog);
+    }
+
+    private void createLayoutErrorDialog(Dialog dialog) {
+        errorDialogVerticalLayout = new VerticalLayout();
+        errorDialogErrorsVerticalLayout = new VerticalLayout();
+        errorDialogErrorsVerticalLayout.setWidth("100%");
+        errorDialogErrorsVerticalLayout.add(new H2("Koekoe"));
+
+        H2 headline = new H2("Controle Werkbon");
+        headline.getStyle().set("margin", "var(--lumo-space-m) 0")
+                .set("font-size", "1.5em").set("font-weight", "bold");
+        errorDialogVerticalLayout.add(headline);
+
+
+        errorDialogVerticalLayout.add(errorDialogErrorsVerticalLayout);
+
+        Button closeButton = new Button("Close");
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        closeButton.addClickListener(e -> dialog.close());
+        errorDialogVerticalLayout.add(closeButton);
+
+        errorDialogVerticalLayout.setPadding(false);
+        errorDialogVerticalLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        errorDialogVerticalLayout.getStyle().set("width", "300px").set("max-width", "100%");
+        errorDialogVerticalLayout.setAlignSelf(FlexComponent.Alignment.END, closeButton);
+
+        dialog.add(errorDialogVerticalLayout);
     }
 
 
@@ -236,20 +339,186 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         imageDialog.getFooter().add(cancelButton);
     }
 
+    private void setUpSpinnerGrid() {
+        bowlGrid = new Grid<>();
+        bowlGrid.setAllRowsVisible(true);
+        chassisNrColumn = bowlGrid.addComponentColumn(item -> {
+            TextField tfChassisNumber = new TextField();
+            tfChassisNumber.setWidth("100%");
+            tfChassisNumber.setValue(item.getChassisNumber());
+            tfChassisNumber.addValueChangeListener(event -> {
+                try {
+                    item.setChassisNumber(tfChassisNumber.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return tfChassisNumber;
+        }).setHeader("Chassis nr.");
+        draaiurenColumn = bowlGrid.addComponentColumn(item -> {
+            TextField tfHours = new TextField();
+            tfHours.setWidth("100%");
+            tfHours.setValue(item.getWorkhours().toString());
+            tfHours.addValueChangeListener(event -> {
+                try {
+                    item.setWorkhours(Integer.valueOf(tfHours.getValue()));
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return tfHours;
+        }).setHeader("Draaiuren");
+
+        bowlUitColumn = bowlGrid.addComponentColumn(item -> {
+            Checkbox checkbRemoved = new Checkbox(item.getBBowlRemoved());
+            checkbRemoved.setValue(item.getBBowlRemoved());
+            checkbRemoved.getStyle().set("transform", "scale(1.5)");
+            checkbRemoved.addValueChangeListener(event -> {
+                try {
+                    item.setBBowlRemoved(checkbRemoved.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return checkbRemoved;
+        }).setFlexGrow(0).setAutoWidth(true);
+        bowlNrEntityColumnUit = bowlGrid.addComponentColumn(item -> {
+            TextField tfBowlNumberRemoved = new TextField();
+            tfBowlNumberRemoved.setWidth("100%");
+            tfBowlNumberRemoved.setValue(item.getBowlRemovedNumber());
+            tfBowlNumberRemoved.addValueChangeListener(event -> {
+                try {
+                    item.setBowlRemovedNumber(tfBowlNumberRemoved.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return tfBowlNumberRemoved;
+        }).setHeader("Bowl nr. uit");
+
+        bowlInColumn = bowlGrid.addComponentColumn(item -> {
+            Checkbox checkbBowlReplaced = new Checkbox(item.getBBowlReplaced());
+            checkbBowlReplaced.setValue(item.getBBowlReplaced());
+            checkbBowlReplaced.getStyle().set("transform", "scale(1.5)");
+            checkbBowlReplaced.addValueChangeListener(event -> {
+                try {
+                    item.setBBowlReplaced(checkbBowlReplaced.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return checkbBowlReplaced;
+        }).setFlexGrow(0).setAutoWidth(true);
+        bowlNrEntityColumnIn = bowlGrid.addComponentColumn(item -> {
+            TextField tfBowlNumberReplaced = new TextField();
+            tfBowlNumberReplaced.setWidth("100%");
+            tfBowlNumberReplaced.setValue(item.getBowlReplacedNumber());
+            tfBowlNumberReplaced.addValueChangeListener(event -> {
+                try {
+                    item.setBowlReplacedNumber(tfBowlNumberReplaced.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setBowlEntityList(selectedBowlEntities);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return tfBowlNumberReplaced;
+        }).setHeader("Bowl nr. in");
+        bowlGrid.addComponentColumn(item -> {
+            Button plusButton = new Button(new Icon(VaadinIcon.PLUS));
+            plusButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+            plusButton.setAriaLabel("Voeg een regel toe");
+            plusButton.addClickListener(event -> {
+                BowlEntity bowlEntity = new BowlEntity();
+                bowlEntity.setChassisNumber("");
+                bowlEntity.setWorkhours(1);
+                bowlEntity.setBBowlRemoved(false);
+                bowlEntity.setBBowlReplaced(false);
+                bowlEntity.setBowlRemovedNumber("");
+                bowlEntity.setBowlReplacedNumber("");
+                bowlEntity.setWorkDate(LocalDate.now());
+                selectedBowlEntities.add(bowlEntity);
+                bowlGrid.getDataProvider().refreshAll();
+                Notification.show("Een regel is toegevoegd!");
+            });
+            return plusButton;
+        }).setFlexGrow(0);
+
+        bowlGrid.addComponentColumn(item -> {
+            Button plusButton = new Button(new Icon(VaadinIcon.MINUS));
+            plusButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+            plusButton.setAriaLabel("Voeg een regel toe");
+            plusButton.addClickListener(event -> {
+                selectedBowlEntity = item;
+                removeBowlDialog.open();
+                Notification.show("Een regel is toegevoegd!");
+            });
+            return plusButton;
+        }).setFlexGrow(0);
+    }
+
     private void setUpTimeGrid() {
         workOrderTimeGrid = new Grid<>();
-        workOrderTimeGrid.setHeight("250px");
+        //workOrderTimeGrid.setHeight("250px");
         workOrderTimeGrid.setAllRowsVisible(true);
-        workOrderTimeGrid.addComponentColumn(item -> {
-            TimePicker timeUpPicker = new TimePicker();
+        upColumn = workOrderTimeGrid.addComponentColumn(item -> {
+            timeUpPicker = new TimePicker();
             timeUpPicker.setValue(item.getTimeUp());
             timeUpPicker.setLocale(Locale.FRENCH);
+            timeUpPicker.setMin(LocalTime.of(5,0,0));
             timeUpPicker.setStep(Duration.ofMinutes(15));
             timeUpPicker.setWidth("100%");
             timeUpPicker.addValueChangeListener(event -> {
                 try {
                     item.setTimeUp(timeUpPicker.getValue());
-                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
+                    workOrderTimeGrid.getDataProvider().refreshAll();
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam - 1).setWorkOrderTimeList(selectedWorkOrderTimes);
                     saveSelectedWorkOrder();
                 } catch (ValidationException e) {
                     throw new RuntimeException(e);
@@ -264,14 +533,25 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         }).setHeader("Vertrek");
 
         workOrderTimeGrid.addComponentColumn(item -> {
-            TimePicker timeStartPicker = new TimePicker();
+            timeStartPicker = new TimePicker();
             timeStartPicker.setValue(item.getTimeStart());
             timeStartPicker.setLocale(Locale.FRENCH);
+            timeStartPicker.setMin(LocalTime.of(5,0,0));
             timeStartPicker.setStep(Duration.ofMinutes(15));
             timeStartPicker.setWidth("100%");
+            timeStartPicker.addFocusListener(event -> {
+                if(timeUpPicker.getValue() != null) {
+                    timeStartPicker.setMin(timeUpPicker.getValue());
+                }
+                else{
+                    timeStartPicker.setMin(LocalTime.of(5,0,0));
+                }
+
+            });
             timeStartPicker.addValueChangeListener(event -> {
                 try {
                     item.setTimeStart(timeStartPicker.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
                     selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
                     saveSelectedWorkOrder();
                 } catch (ValidationException e) {
@@ -284,7 +564,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 }
             });
             return timeStartPicker;
-        }).setHeader("Aankomst Klant");
+        }).setHeader("Start werk");
 
         workOrderTimeGrid.addComponentColumn(item -> {
             ComboBox<Integer> cbPauze = new ComboBox();
@@ -309,14 +589,19 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         }).setHeader("Pauze");
 
         workOrderTimeGrid.addComponentColumn(item -> {
-            TimePicker timeStopPicker = new TimePicker();
+            timeStopPicker = new TimePicker();
             timeStopPicker.setValue(item.getTimeStop());
             timeStopPicker.setLocale(Locale.FRENCH);
             timeStopPicker.setStep(Duration.ofMinutes(15));
             timeStopPicker.setWidth("100%");
+            timeStopPicker.addFocusListener(event -> {
+                timeStopPicker.setMin(timeStartPicker.getValue());
+            });
             timeStopPicker.addValueChangeListener(event -> {
                 try {
                     item.setTimeStop(timeStopPicker.getValue());
+                    //timeDownPicker.setMin(timeStopPicker.getValue());
+                    workOrderTimeGrid.getDataProvider().refreshAll();
                     selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
                     saveSelectedWorkOrder();
                 } catch (ValidationException e) {
@@ -329,18 +614,27 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 }
             });
             return timeStopPicker;
-        }).setHeader("Vertrek Klant");
+        }).setHeader("Stop werk");
 
-        workOrderTimeGrid.addComponentColumn(item -> {
-            TimePicker timeDownPicker = new TimePicker();
+        downColumn = workOrderTimeGrid.addComponentColumn(item -> {
+            timeDownPicker = new TimePicker();
             timeDownPicker.setValue(item.getTimeDown());
             timeDownPicker.setLocale(Locale.FRENCH);
             timeDownPicker.setStep(Duration.ofMinutes(15));
             timeDownPicker.setWidth("100%");
+            timeDownPicker.addFocusListener(event -> {
+                timeDownPicker.setMin(timeStopPicker.getValue());
+            });
             timeDownPicker.addValueChangeListener(event -> {
                 try {
                     item.setTimeDown(timeDownPicker.getValue());
                     selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
+                    try{
+                        long hours = ChronoUnit.HOURS.between(item.getTimeUp(), item.getTimeDown());
+                        tfFleetHours.setPlaceholder(String.valueOf(hours));
+                    }
+                    catch (Exception e){
+                    }
                     saveSelectedWorkOrder();
                 } catch (ValidationException e) {
                     throw new RuntimeException(e);
@@ -354,6 +648,31 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             return timeDownPicker;
         }).setHeader("Terug");
 
+        overNightColumn = workOrderTimeGrid.addComponentColumn(item -> {
+            Checkbox checkbox = new Checkbox();
+            checkbox.getStyle().set("transform", "scale(1.5)");
+            if(item.getBOvernight() != null){
+                checkbox.setValue(item.getBOvernight());
+            }
+           else{
+               checkbox.setValue(false);
+            }
+            checkbox.addValueChangeListener(event -> {
+                try {
+                    item.setBOvernight(checkbox.getValue());
+                    selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
+                    saveSelectedWorkOrder();
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+                try {
+                    workOrderBinder.writeBean(selectedWorkOrder);
+                } catch (ValidationException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            return checkbox;
+        }).setHeader("Overn.").setFlexGrow(0);
         workOrderTimeGrid.addComponentColumn(item -> {
             Button plusButton = new Button(new Icon(VaadinIcon.PLUS));
             plusButton.addThemeVariants(ButtonVariant.LUMO_ICON);
@@ -364,7 +683,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 Notification.show("Een regel is toegevoegd!");
             });
             return plusButton;
-        }).setWidth("20px");
+        }).setFlexGrow(0);
 
         workOrderTimeGrid.addComponentColumn(item -> {
             Button plusButton = new Button(new Icon(VaadinIcon.MINUS));
@@ -376,12 +695,16 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 Notification.show("Een regel is toegevoegd!");
             });
             return plusButton;
-        }).setWidth("20px");
+        }).setFlexGrow(0);
     }
 
     private void setUpCurrentWorkOrderDialog() {
         searchCurrentWorkOrderDialog = new Dialog();
-        Button closeButton = new Button("Selecteer lopende werkbon.",
+        Button closeButton = new Button(new Icon(VaadinIcon.CLOSE));
+        closeButton.addClickListener(event -> {
+            searchCurrentWorkOrderDialog.close();
+        });
+        Button openCurrentWorkOrderButton = new Button("Selecteer lopende werkbon.",
                 (e) -> {
                 List<WorkOrder>selectedBundledWorkOrders;
             try{
@@ -396,25 +719,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
                 buddyTab.removeAll();
                 //add Parent Tab
-                CustomTab parentTab = new CustomTab();
+                Tab parentTab = new Tab();
                 WorkOrder partentWorkOrder = selectedCoupledWorkOrders.stream().filter(item -> item.getStarter()).findFirst().get();
                 parentTab.setLabel(partentWorkOrder.getWorkDateTime().format(DateTimeFormatter.ofPattern("dd/MM")));
-                parentTab.setWorkOrderId(partentWorkOrder.getId());
+                parentTab.getElement().setProperty("workOrderId", partentWorkOrder.getId());
                 buddyTab.add(parentTab);
                 buddyTab.setSelectedTab(parentTab);
                 setSelectedWorkOrder(partentWorkOrder);
 
                 //Try to add ChildrenTab
                 selectedCoupledWorkOrders.stream().filter(item -> item.getStarter() == false).forEach(item -> {
-                    CustomTab childTab = new CustomTab();
+                    Tab childTab = new Tab();
                     childTab.setLabel(item.getWorkDateTime().format(DateTimeFormatter.ofPattern("dd/MM")));
-                    childTab.setWorkOrderId(item.getId());
+                    childTab.getElement().setProperty("workOrderId", item.getId());
                     buddyTab.add(childTab);
-                });
-
-                buddyTab.addSelectedChangeListener(event -> {
-                    CustomTab selectedCustomTab = (CustomTab)buddyTab.getSelectedTab();
-                    setSelectedWorkOrder(workOrderService.getWorkOrderById(selectedCustomTab.getWorkOrderId()).get());
                 });
 
                 searchCurrentWorkOrderDialog.close();
@@ -423,12 +741,13 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 searchCurrentWorkOrderDialog.close();
             }
                 });
-        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        openCurrentWorkOrderButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        searchCurrentWorkOrderDialog.getHeader().add(openCurrentWorkOrderButton);
         searchCurrentWorkOrderDialog.getHeader().add(closeButton);
         searchCurrentWorkOrderDialog.setCloseOnEsc(true);
         searchCurrentWorkOrderDialog.setCloseOnOutsideClick(true);
-        searchCurrentWorkOrderDialog.setWidth("50%");
-        searchCurrentWorkOrderDialog.setHeight("50%");
+        searchCurrentWorkOrderDialog.setWidth("100%");
+        searchCurrentWorkOrderDialog.setHeight("100%");
         searchCurrentWorkOrderDialog.setHeaderTitle("Lopende werkbonnen");
         searchCurrentWorkOrderDialog.add(currtentWorkOrdersSubVieuw);
     }
@@ -440,13 +759,39 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         VerticalLayout dialogLayout = createDialogLayoutRemoveHour();
         removeWorkOrderHourDialog.add(dialogLayout);
 
-        Button saveButton = createRemoveButton(removeWorkOrderHourDialog);
+        Button saveButton = createRemoveTime(removeWorkOrderHourDialog);
         Button cancelButton = new Button("Niet Verwijderen", e -> removeWorkOrderHourDialog.close());
         removeWorkOrderHourDialog.getFooter().add(cancelButton);
         removeWorkOrderHourDialog.getFooter().add(saveButton);
     }
 
-    private Button createRemoveButton(Dialog removeWorkOrderHourDialog) {
+    private void setUpRemoveBowlDialog() {
+        removeBowlDialog = new Dialog();
+        removeBowlDialog.setHeaderTitle("Ben je zeker dat je de bowl wil verwijderen?");
+
+        VerticalLayout dialogLayout = createDialogLayoutBowl();
+        removeBowlDialog.add(dialogLayout);
+
+        Button saveButton = createRemoveBowl(removeBowlDialog);
+        Button cancelButton = new Button("Niet Verwijderen", e -> removeBowlDialog.close());
+        removeBowlDialog.getFooter().add(cancelButton);
+        removeBowlDialog.getFooter().add(saveButton);
+    }
+
+    private Button createRemoveBowl(Dialog removeWorkOrderHourDialog) {
+
+        Button removeButton = new Button("Verwijderen");
+        removeButton.addClickListener(click -> {
+            selectedBowlEntities.remove(selectedBowlEntity);
+            bowlGrid.getDataProvider().refreshAll();
+            Notification.show("Bowl verwijderen!");
+            removeBowlDialog.close();
+        });
+        removeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        return removeButton;
+    }
+
+    private Button createRemoveTime(Dialog removeWorkOrderHourDialog) {
 
         Button removeButton = new Button("Verwijderen");
         removeButton.addClickListener(click -> {
@@ -457,12 +802,23 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         });
         removeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         return removeButton;
-
     }
 
     private static VerticalLayout createDialogLayoutRemoveHour() {
 
         Span span = new Span("Deze tijd wordt definitief verwijderd!");
+        VerticalLayout dialogLayout = new VerticalLayout(span);
+        dialogLayout.setPadding(false);
+        dialogLayout.setSpacing(false);
+        dialogLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        dialogLayout.getStyle().set("width", "18rem").set("max-width", "100%");
+
+        return dialogLayout;
+    }
+
+    private static VerticalLayout createDialogLayoutBowl() {
+
+        Span span = new Span("Deze bowl wordt definitief verwijderd!");
         VerticalLayout dialogLayout = new VerticalLayout(span);
         dialogLayout.setPadding(false);
         dialogLayout.setSpacing(false);
@@ -482,8 +838,34 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
         Button saveButton = createSaveButton(finishWorkOrderDialog);
         Button cancelButton = new Button("Niet Afwerken", e -> finishWorkOrderDialog.close());
+
         finishWorkOrderDialog.getFooter().add(cancelButton);
         finishWorkOrderDialog.getFooter().add(saveButton);
+
+        finishWorkOrderDialog.addOpenedChangeListener(listener -> {
+            errorList = workOrderServices.checkWorkOrderBeforeSendToInvoice(selectedWorkOrder, errorList);
+            if(errorList.size() > 0){
+                errorDialogErrorsVerticalLayout.removeAll();
+                for(String error : errorList){
+                    Button button = new Button(error);
+                    button.addThemeVariants(ButtonVariant.LUMO_ERROR);
+                    button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                    errorDialogErrorsVerticalLayout.add(button);
+                }
+                finishWorkOrderDialog.close();
+            }
+            if (listener.isOpened()){
+                if(errorList.isEmpty()) {
+                    saveButton.setEnabled(true);
+                }
+                else{
+                    saveButton.setEnabled(false);
+                    errorDialog.setTop(headerSplitLayout.getSplitterPosition().toString()+"%");
+                    errorDialog.setHeight("100%");
+                    errorDialog.open();
+                }
+            }
+        });
     }
 
     private static VerticalLayout createDialogLayout() {
@@ -503,8 +885,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         saveButton.addClickListener(click -> {
             dialog.close();
             try {
-                workOrderHeaderBinder.writeBean(selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1));
                 workOrderBinder.writeBean(selectedWorkOrder);
+                workOrderHeaderBinder.writeBean(selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1));
                 selectedWorkOrder.setWorkOrderStatus(WorkOrderStatus.FINISHED);
                 saveSelectedWorkOrder();
                 Notification.show("Deze werkbon is afgewerkt");
@@ -512,23 +894,37 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 Notification.show("Deze werkbon kon niet worden bewaard.");
             }
             readNewWorkOrder();
+
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         return saveButton;
     }
 
     private void setUpFinishButton() {
-        finishButton.setWidth("100%");
+        finishButton.setWidth("50%");
         finishButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                ButtonVariant.LUMO_WARNING);
+                ButtonVariant.LUMO_SUCCESS);
         finishButton.addClickListener(e -> {
             finishWorkOrderDialog.open();
         });
     }
 
+    private void setUpSaveButton() {
+        saveWorkOrderButton.setWidth("50%");
+        saveWorkOrderButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_WARNING);
+        saveWorkOrderButton.addClickListener(e -> {
+            try {
+                saveSelectedWorkOrder();
+            } catch (ValidationException f) {
+                Notification.show("Kon de werkbon nog niet bewaren");
+            }
+        });
+    }
+
     private void setUpShowImageButton() {
         showImageButton = new Button("Er zijn in deze werkbon geen foto's toegevoegd, gelieve altijd een foto te koppelen van de werken!");
-        showImageButton.setWidth("100%");
+        showImageButton.setWidth("50%");
 
         showImageButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         showImageButton.addClickListener(e -> {
@@ -604,12 +1000,39 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
     private void setUpWorkOrderHeaderBinder() {
         workOrderHeaderBinder = new Binder<>(WorkOrderHeader.class);
+        workOrderHeaderBinder.forField(typeComboBox)
+                .asRequired("Gelieve een werktype te selecteren!")
+                .bind(WorkOrderHeader::getWorkType, WorkOrderHeader::setWorkType);
         workOrderHeaderBinder.forField(taDiscription)
+                .asRequired("Gelieve een omschrijving in te geven!")
                 .bind(WorkOrderHeader::getDiscription, WorkOrderHeader::setDiscription);
         workOrderHeaderBinder.forField(fleetComboBox)
+                .withValidator(value -> {
+                    WorkLocation keuze = locationComboBox.getValue();
+                    if(value != null){
+                        return true;
+                    }
+                    if (WorkLocation.ON_THE_MOVE.equals(keuze)) {
+                        return false;
+                    }
+                    return true;
+                }, "Verplichte invulling nodig wegens keuze verplaatsing")
                 .bind(WorkOrderHeader::getFleet, WorkOrderHeader::setFleet);
-        workOrderHeaderBinder.forField(fleetOptions)
-                .bind(WorkOrderHeader::getFleetOptions, WorkOrderHeader::setFleetOptions);
+        workOrderHeaderBinder.forField(tfFleetHours)
+                .withNullRepresentation("")
+                .withConverter(new StringToDoubleConverter("Dit is geen decimaal getal!"))
+                .withValidator(value -> {
+                    Fleet fleet = fleetComboBox.getValue();
+                    FleetWorkType fleetWorkType = fleetWorkTypeComboBox.getValue();
+                    if((value != null) && (fleetWorkType != null)) {
+                        return true;
+                    }
+                    if ((Fleet.TRUCK_CRANE.equals(fleet)) && ((fleetWorkType.equals(FleetWorkType.INTENS) || (fleetWorkType.equals(FleetWorkType.REGULAR)) ) )) {
+                        return false;
+                    }
+                    return true;
+                }, "Verplichte invulling nodig wegens keuze kraan")
+                .bind(WorkOrderHeader::getFleetHours, WorkOrderHeader::setFleetHours);
         workOrderHeaderBinder.forField(tfRoadTax)
                 .withNullRepresentation("")
                 .withConverter(new StringToDoubleConverter("Dit is geen decimaal getal!"))
@@ -619,6 +1042,16 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 .withConverter(new StringToDoubleConverter("Dit is geen decimaal getal!"))
                 .bind(WorkOrderHeader::getTunnelTax, WorkOrderHeader::setTunnelTax);
         workOrderHeaderBinder.forField(fleetWorkTypeComboBox)
+                .withValidator(value -> {
+                    Fleet fleet = fleetComboBox.getValue();
+                    if(value != null){
+                        return true;
+                    }
+                    if (Fleet.TRUCK_CRANE.equals(fleet)) {
+                        return false;
+                    }
+                    return true;
+                }, "Verplichte invulling nodig wegens keuze kraan")
                 .bind(WorkOrderHeader::getFleetWorkType, WorkOrderHeader::setFleetWorkType);
         workOrderHeaderBinder.addValueChangeListener(workOrderHeader -> {
             try {
@@ -634,18 +1067,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderBinder.forField(addressComboBox)
                 .asRequired("Elke werkbon met een werfadres hebben!")
                 .bind(WorkOrder::getWorkAddress, WorkOrder::setWorkAddress);
-        workOrderBinder.forField(addressComboBox)
-                .asRequired("Gelieve een klant in te geven!")
-                .bind(WorkOrder::getWorkAddress, WorkOrder::setWorkAddress);
-        workOrderBinder.forField(dateTimePicker)
-                .asRequired("Gelieve een datum te selecteren!")
-                .bind(WorkOrder::getWorkDateTime, WorkOrder::setWorkDateTime);
         workOrderBinder.forField(locationComboBox)
-                .asRequired("Gelieve een werkplaats te selecteren!")
+                .asRequired("Gelieve een locatie in te geven!")
                 .bind(WorkOrder::getWorkLocation, WorkOrder::setWorkLocation);
-        workOrderBinder.forField(typeComboBox)
-                .asRequired("Gelieve een werktype te selecteren!")
-                .bind(WorkOrder::getWorkType, WorkOrder::setWorkType);
+        workOrderBinder.forField(datePicker)
+                .asRequired("Gelieve een datum te selecteren!")
+                .bind(x -> x.getWorkDateTime().toLocalDate(), (x,y)-> x.setWorkDateTime(y.atStartOfDay()));
         workOrderBinder.forField(cbMasterEmployee1)
                 .withNullRepresentation(cbMasterEmployee1.getEmptyValue())
                 .asRequired("Gelieve een verantwoordelijke te selecteren!")
@@ -691,6 +1118,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     private FormLayout getWorkOrderHeader() {
         formLayout = new FormLayout();
         formLayout.setSizeFull();
+        //formLayout.setRowSpacing("1px");
+        //formLayout.setColumnSpacing("1px");
         formLayout.add(getFirstStepHeader());
         return formLayout;
     }
@@ -700,7 +1129,37 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         typeComboBox.setItems(WorkType.values());
         typeComboBox.setItemLabelGenerator(WorkType::getDiscription);
         typeComboBox.setPlaceholder("Type");
+        typeComboBox.setVisible(false);
         typeComboBox.setWidthFull();
+        typeComboBox.addValueChangeListener(event -> {
+            if(event.getValue() == WorkType.CENTRIFUGE){
+                if(locationComboBox.getValue() != null && locationComboBox.getValue().equals(WorkLocation.ON_THE_MOVE)){
+                    level5VerticalLayout.remove(bowlGrid);
+                    chassisNrColumn.setVisible(true);
+                    bowlNrEntityColumnIn.setVisible(true);
+                    bowlInColumn.setVisible(true);
+                    bowlNrEntityColumnUit.setVisible(true);
+                    bowlUitColumn.setVisible(true);
+                    draaiurenColumn.setVisible(true);
+                    level5VerticalLayout.addComponentAsFirst(bowlGrid);
+                } else if (locationComboBox.getValue() != null && locationComboBox.getValue().equals(WorkLocation.WORKPLACE)) {
+                    level5VerticalLayout.remove(bowlGrid);
+                    chassisNrColumn.setVisible(false);
+                    bowlNrEntityColumnIn.setVisible(false);
+                    bowlInColumn.setVisible(false);
+                    bowlNrEntityColumnUit.setVisible(true);
+                    bowlUitColumn.setVisible(false);
+                    draaiurenColumn.setVisible(false);
+                    level5VerticalLayout.addComponentAsFirst(bowlGrid);
+                }
+                else{
+                    level5VerticalLayout.remove(bowlGrid);
+                }
+            }
+            else{
+                level5VerticalLayout.remove(bowlGrid);
+            }
+        });
         return typeComboBox;
     }
 
@@ -728,11 +1187,11 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
         vLayoutHeaderLevel7Tabs = new VerticalLayout();
         vLayoutHeaderLevel7Tabs.setSizeFull();
-        vLayoutHeaderLevel7Tabs.setVisible(true);
+        vLayoutHeaderLevel7Tabs.setVisible(false);
 
         vLayoutHeaderLevel8Tabs = new VerticalLayout();
         vLayoutHeaderLevel8Tabs.setSizeFull();
-        vLayoutHeaderLevel8Tabs.setVisible(true);
+        vLayoutHeaderLevel8Tabs.setVisible(false);
 
         locationComboBox = new ComboBox<>();
         locationComboBox.setItems(WorkLocation.values());
@@ -741,7 +1200,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         locationComboBox.setWidthFull();
         locationComboBox.addValueChangeListener(event -> {
             if (event.getValue() != null) {
+                typeComboBox.clear();
+                typeComboBox.setVisible(true);
                 if(event.getValue().compareTo(WorkLocation.ON_THE_MOVE) == 0){
+                    downColumn.setVisible(true);
+                    overNightColumn.setVisible(true);
+                    upColumn.setVisible(true);
                     vLayoutHeaderLevel2Tabs.setVisible(true);
                     vLayoutHeaderLevel3Tabs.setVisible(true);
                     vLayoutHeaderLevel4Tabs.setVisible(true);
@@ -754,15 +1218,19 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     vLayoutHeaderLevel7Tabs.removeAll();
                     vLayoutHeaderLevel8Tabs.removeAll();
                     vLayoutHeaderLevel2Tabs.add(getLevel2(WorkLocation.ON_THE_MOVE));
-                    vLayoutHeaderLevel3Tabs.add(getLevel5(WorkLocation.ON_THE_MOVE));
+                    vLayoutHeaderLevel3Tabs.add(getLevel5());
                     vLayoutHeaderLevel4Tabs.add(getLevel3(WorkLocation.ON_THE_MOVE));
                     vLayoutHeaderLevel5Tabs.add(getLevel4(WorkLocation.ON_THE_MOVE));
                     vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.ON_THE_MOVE));
-                    vLayoutHeaderLevel7Tabs.add(dropEnabledUpload,showImageButton);
-                    vLayoutHeaderLevel8Tabs.add(finishButton);
+                    workOrderHeaderBinder.validate();
+                    //vLayoutHeaderLevel7Tabs.add(dropEnabledUpload,showImageButton);
+                    //vLayoutHeaderLevel8Tabs.add(finishButton);
                     
                 }
                 else{
+                    downColumn.setVisible(false);
+                    overNightColumn.setVisible(false);
+                    upColumn.setVisible(false);
                     vLayoutHeaderLevel2Tabs.setVisible(true);
                     vLayoutHeaderLevel3Tabs.setVisible(true);
                     vLayoutHeaderLevel4Tabs.setVisible(true);
@@ -774,12 +1242,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     vLayoutHeaderLevel6Tabs.removeAll();
                     vLayoutHeaderLevel7Tabs.removeAll();
                     vLayoutHeaderLevel8Tabs.removeAll();
+                    vLayoutHeaderLevel3Tabs.add(getLevel5());
                     vLayoutHeaderLevel2Tabs.add(getLevel2(WorkLocation.WORKPLACE));
-                    vLayoutHeaderLevel3Tabs.add(getLevel5(WorkLocation.WORKPLACE));
                     vLayoutHeaderLevel4Tabs.add(getLevel3(WorkLocation.WORKPLACE));
                     vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.WORKPLACE));
-                    vLayoutHeaderLevel7Tabs.add(dropEnabledUpload);
-                    vLayoutHeaderLevel8Tabs.add(finishButton);
+                    //vLayoutHeaderLevel7Tabs.add(dropEnabledUpload);
+                    //vLayoutHeaderLevel8Tabs.add(finishButton);
                 }
             }
         });
@@ -788,9 +1256,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
     private VerticalLayout getLevel6(WorkLocation workLocation) {
         VerticalLayout vLayout = new VerticalLayout();
-
+        vLayout.setPadding(false);
+        vLayout.setMargin(false);
         HorizontalLayout horizontalLayoutLevel6 = new HorizontalLayout();
         horizontalLayoutLevel6.setSizeFull();
+        horizontalLayoutLevel6.setPadding(false);
+        horizontalLayoutLevel6.setMargin(false);
         horizontalLayoutLevel6.setVisible(false);
         Button hideButton = new Button("Selectie van opties die op deze werkbon zijn gebruikt : klik om deze te zien, dubbelklik om te verbergen");
         hideButton.setWidth("100%");
@@ -803,17 +1274,17 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         vLayout.add(hideButton,horizontalLayoutLevel6);
 
         if(workLocation == WorkLocation.ON_THE_MOVE){
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(1)).collect(Collectors.toSet()));
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(2)).collect(Collectors.toSet()));
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(3)).collect(Collectors.toSet()));
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(4)).collect(Collectors.toSet()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(1)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(2)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(3)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)).filter(filter -> filter.getGroup().equals(4)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
             vLayout.add(hideButton,horizontalLayoutLevel6);
             return vLayout;
         }
         else{
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(1)).collect(Collectors.toSet()));
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(2)).collect(Collectors.toSet()));
-            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(3)).collect(Collectors.toSet()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(1)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(2)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
+            addAvatarToVirtualList(horizontalLayoutLevel6, Arrays.stream(Tools.values()).filter(filter -> filter.getWorkLocation().equals(WorkLocation.WORKPLACE)).filter(filter -> filter.getGroup().equals(3)).sorted(Comparator.comparing(Tools::getPosition)).collect(Collectors.toList()));
 
             vLayout.add(hideButton,horizontalLayoutLevel6);
             return vLayout;
@@ -821,22 +1292,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
     }
 
-    private void addAvatarToVirtualList(HorizontalLayout horizontalLayoutLevel6, Set<Tools> toolsToAdd) {
+    private void addAvatarToVirtualList(HorizontalLayout horizontalLayoutLevel6, List<Tools> toolsToAdd) {
         VirtualList<Tools> toolsVirtualList = new VirtualList<>();
+        toolsVirtualList.setHeight("220px");
         visualizeSelectedOptions(toolsToAdd);
         toolsVirtualList.setItems(toolsToAdd);
         toolsVirtualList.setRenderer(toolCardRenderer);
-        //visualizeSelectedOptions();
         horizontalLayoutLevel6.add(toolsVirtualList);
     }
 
-    private void visualizeSelectedOptions(Set<Tools> toolsToAdd){
+    private void visualizeSelectedOptions(List<Tools> toolsToAdd){
         for(Tools tool : toolsToAdd){
             Set<Product> collect = selectedWorkOrder.getProductList().stream().filter(item -> {
-                if(item.getProductCode() != null){
-                    return item.getProductCode()
-                            .replace("1", "")
-                            .replace("2", "")
+                if(item.getAbbreviation() != null){
+                    return item.getAbbreviation()
                             .matches(tool.getAbbreviation());
                 }
                 else{
@@ -852,20 +1321,25 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         }
     }
 
-    private VerticalLayout getLevel5(WorkLocation workLocation) {
-        VerticalLayout verticalLayout = new VerticalLayout();
-        verticalLayout.setWidth("100%");
+    private VerticalLayout getLevel5() {
+        level5VerticalLayout = new VerticalLayout();
+        level5VerticalLayout.setWidth("100%");
+        level5VerticalLayout.setPadding(false);
         taDiscription.setWidthFull();
         taDiscription.setHeight("100%");
         taDiscription.setPlaceholder("Gelieve een duidelijke omschrijving te geven betreffende de uitgevoerde werken");
-        verticalLayout.add(taDiscription);
-        return verticalLayout;
+        level5VerticalLayout.add(taDiscription);
+        return level5VerticalLayout;
     }
 
     private HorizontalLayout getLevel4(WorkLocation workLocation) {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setPadding(false);
         horizontalLayout.setWidth("100%");
         if(workLocation == WorkLocation.ON_THE_MOVE){
+
+            HorizontalLayout horizontalLayout2 = new HorizontalLayout();
+            horizontalLayout2.setVisible(false);
 
             VerticalLayout vLayout1 = new VerticalLayout();
             vLayout1.setWidth("100%");
@@ -879,35 +1353,48 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             fleetComboBox.setItemLabelGenerator(Fleet::getDiscription);
             fleetComboBox.setWidth("100%");
             fleetComboBox.setPlaceholder("Voertuig");
-            fleetComboBox.addValueChangeListener(selectedValue -> {
-                if(selectedValue.isFromClient()){
-                    if (selectedValue.getValue().equals(Fleet.TRUCK_CRANE)) {
-                        fleetOptions.setEnabled(true);
-                        fleetOptions.setItems(FleetTruckCraneOptions.values());
-                    }
-                    else{
-                        fleetOptions.clear();
-                        fleetOptions.setEnabled(false);
-                    }
+            fleetComboBox.addValueChangeListener(item -> {
+                if((item.getValue() != null) && (item.getValue().equals(Fleet.TRUCK_CRANE))){
+                    horizontalLayout2.setVisible(true);
+                }
+                else{
+                    horizontalLayout2.setVisible(false);
                 }
             });
-            fleetOptions.setItemLabelGenerator(FleetTruckCraneOptions::getOptions);
-            fleetOptions.setWidth("100%");
-            fleetOptions.setPlaceholder("Voertuig opties");
-
-            vLayout1.add(fleetComboBox, tfRoadTax);
-            vLayout2.add(fleetOptions, tfTunnelTax,fleetWorkTypeComboBox);
 
             tfRoadTax.setWidth("100%");
-            tfRoadTax.setPlaceholder("Wegentax");
+            tfRoadTax.setSuffixComponent(new Span("€"));
+            tfRoadTax.setPlaceholder("Wegentaks");
 
             tfTunnelTax.setWidth("100%");
-            tfTunnelTax.setPlaceholder("Tunneltax");
+            tfTunnelTax.setSuffixComponent(new Span("€"));
+            tfTunnelTax.setPlaceholder("Tunneltaks");
 
+            horizontalLayout2.setWidth("100%");
             fleetWorkTypeComboBox.setItems(FleetWorkType.values());
             fleetWorkTypeComboBox.setItemLabelGenerator(FleetWorkType::getDiscription);
-            fleetWorkTypeComboBox.setWidth("100%");
+            fleetWorkTypeComboBox.setWidth("50%");
             fleetWorkTypeComboBox.setPlaceholder("Type werk kraan");
+            fleetWorkTypeComboBox.addValueChangeListener(item -> {
+                if((item.getValue() != null) && (item.getValue().equals(FleetWorkType.DELIVERY))){
+                    tfFleetHours.setEnabled(false);
+                }
+                else{
+                    tfFleetHours.setEnabled(true);
+                }
+            });
+
+            tfFleetHours.setWidth("50%");
+            tfFleetHours.setPlaceholder("Aantal uren kraan");
+            horizontalLayout2.add(fleetWorkTypeComboBox, tfFleetHours);
+
+            vLayout1.setPadding(false);
+            vLayout2.setPadding(false);
+
+            vLayout2.add(tfRoadTax,tfTunnelTax);
+            vLayout1.add(fleetComboBox, horizontalLayout2);
+
+
 
             horizontalLayout.add(vLayout1, vLayout2);
         }
@@ -916,6 +1403,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
     private VerticalLayout getLevel3(WorkLocation workLocation) {
         VerticalLayout verticalLayout = new VerticalLayout();
+        verticalLayout.setPadding(false);
         if(workLocation == WorkLocation.ON_THE_MOVE){
             verticalLayout.add(workOrderTimeGrid);
         }
@@ -950,12 +1438,15 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         horizontalLayout1.setClassName("selected");
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+        addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
 
         Icon homeIcon1 = VaadinIcon.WORKPLACE.create();
         homeIcon1.addClickListener(e -> {
             selectedTeam = 1;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
             horizontalLayout1.setClassName("selected");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("");
@@ -966,6 +1457,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         Optional<List<Employee>> employees1 = employeeService.getAll();
         if(employees1.isPresent()){
             cbMasterEmployee1.setPlaceholder("Team 1");
+            cbMasterEmployee1.setClearButtonVisible(true);
             cbMasterEmployee1.setItems(employees1.get());
             cbMasterEmployee1.setItemLabelGenerator(item -> item.getFirstName()+ " " + item.getLastName());
             cbExtraEmployees1.setItems(employees1.get());
@@ -988,7 +1480,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         homeIcon2.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(1));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(1).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(1).getBowlEntityList());
             selectedTeam = 2;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("selected");
             horizontalLayout3.setClassName("");
@@ -1000,6 +1494,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         if(employees2.isPresent()){
             cbMasterEmployee2.setPlaceholder("Team 2");
             cbMasterEmployee2.setItems(employees2.get());
+            cbMasterEmployee2.setClearButtonVisible(true);
             cbMasterEmployee2.setItemLabelGenerator(item -> item.getFirstName()+ " " + item.getLastName());
             cbExtraEmployees2.setItems(employees2.get());
             cbExtraEmployees2.setItemLabelGenerator(item -> item.getAbbreviation());
@@ -1020,7 +1515,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         homeIcon3.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(2));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(2).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(2).getBowlEntityList());
             selectedTeam = 3;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("selected");
@@ -1031,6 +1528,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         Optional<List<Employee>> employees3 = employeeService.getAll();
         if(employees3.isPresent()){
             cbMasterEmployee3.setPlaceholder("Team 3");
+            cbMasterEmployee3.setClearButtonVisible(true);
             cbMasterEmployee3.setItems(employees3.get());
             cbMasterEmployee3.setItemLabelGenerator(item -> item.getFirstName()+ " " + item.getLastName());
             cbExtraEmployees3.setItems(employees3.get());
@@ -1050,7 +1548,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         homeIcon4.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(3));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(3).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(3).getBowlEntityList());
             selectedTeam = 4;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("");
@@ -1061,6 +1561,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         Optional<List<Employee>> employees4 = employeeService.getAll();
         if(employees4.isPresent()){
             cbMasterEmployee4.setPlaceholder("Team 4");
+            cbMasterEmployee4.setClearButtonVisible(true);
             cbMasterEmployee4.setItems(employees4.get());
             cbMasterEmployee4.setItemLabelGenerator(item -> item.getFirstName()+ " " + item.getLastName());
             cbExtraEmployees4.setItems(employees4.get());
@@ -1095,6 +1596,27 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         }
     }
 
+    private void addItemsToBowlGrid(List<BowlEntity> bowlEntityList) {
+        if((bowlEntityList != null) && (bowlEntityList.size() > 0)){
+            selectedBowlEntities = bowlEntityList;
+            bowlGrid.setItems(selectedBowlEntities);
+        }
+        else{
+            List<BowlEntity> emptyList = new ArrayList<>();
+            BowlEntity bowlEntity = new BowlEntity();
+            bowlEntity.setChassisNumber("");
+            bowlEntity.setWorkhours(1);
+            bowlEntity.setBBowlRemoved(false);
+            bowlEntity.setBBowlReplaced(false);
+            bowlEntity.setBowlRemovedNumber("");
+            bowlEntity.setBowlReplacedNumber("");
+            bowlEntity.setWorkDate(LocalDate.now());
+            emptyList.add(bowlEntity);
+            selectedBowlEntities = emptyList;
+            bowlGrid.setItems(selectedBowlEntities);
+        }
+    }
+
     private VerticalLayout getSecondStepOnTheMove() {
         VerticalLayout secondStepHome = new VerticalLayout();
         secondStepHome.setWidth("100%");
@@ -1112,7 +1634,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         moveIcon1.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
             selectedTeam = 1;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("selected");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("");
@@ -1144,7 +1668,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         moveIcon2.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(1));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(1).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(1).getBowlEntityList());
             selectedTeam = 2;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("selected");
             horizontalLayout3.setClassName("");
@@ -1176,7 +1702,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         moveIcon3.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(2));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(2).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(2).getBowlEntityList());
             selectedTeam = 3;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("selected");
@@ -1207,7 +1735,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         moveIcon4.addClickListener(e -> {
             workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(3));
             addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(3).getWorkOrderTimeList());
+            addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(3).getBowlEntityList());
             selectedTeam = 4;
+            selectProductSubView.setSelectedTeam(selectedTeam-1);
             horizontalLayout1.setClassName("");
             horizontalLayout2.setClassName("");
             horizontalLayout3.setClassName("");
@@ -1244,7 +1774,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         VerticalLayout verticalLayout = new VerticalLayout();
         verticalLayout.setSizeFull();
         verticalLayout.add(getAddressComboBox());
-        verticalLayout.add(getDateTimePicker());
+        verticalLayout.add(getDatePicker());
         verticalLayout.add(getLocationComboBox());
         verticalLayout.add(getTypeComboBox());
         return verticalLayout;
@@ -1255,8 +1785,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         horizontalLayout.setWidth("100%");
         horizontalLayout.setSpacing(true);
 
-        Button addProductScaleButton = new Button("Schaal 7/3");
-        Button seeWorkOrderScaleButton = new Button("Schaal 3/7");
+        Button addProductScaleButton = new Button("LINKS");
+        Button seeWorkOrderScaleButton = new Button("RECHTS");
 
         addProductScaleButton.addClickListener(e -> {
             mainSplitLayout.setSplitterPosition(70);
@@ -1299,14 +1829,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         return horizontalLayout;
     }
 
-    private DateTimePicker getDateTimePicker() {
-        dateTimePicker.setLocale(Locale.FRENCH);
-        dateTimePicker.setValue(LocalDateTime.now());
-        dateTimePicker.setWidthFull();
-        dateTimePicker.addValueChangeListener(event -> {
+    private DatePicker getDatePicker() {
+        datePicker.setLocale(Locale.FRENCH);
+        datePicker.setValue(LocalDate.now());
+        datePicker.setWidthFull();
+        datePicker.addValueChangeListener(event -> {
             buddyTab.getSelectedTab().setLabel(event.getValue().format(DateTimeFormatter.ofPattern("dd/MM")));
         });
-        return dateTimePicker;
+        return datePicker;
     }
 
     private ComboBox getAddressComboBox() {
@@ -1318,7 +1848,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             Notification.show("Geen Klanten in de database");
         }
         addressComboBox.setPlaceholder("Gelieve een klant/adres te selecteren");
-        addressComboBox.setItemLabelGenerator(address -> address.getAddressName());
+        addressComboBox.setItemLabelGenerator(address -> {
+            if(address.getCustomerName() != null){
+                return address.getCustomerName() + " / " + address.getAddressName();
+            }
+            else{
+                return address.getAddressName();
+            }
+        });
         addressComboBox.setWidthFull();
         return addressComboBox;
     }
@@ -1326,13 +1863,19 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     private ComponentRenderer<Component, Tools> toolCardRenderer = new ComponentRenderer<>(
             tool -> {
                 HorizontalLayout cardLayout = new HorizontalLayout();
-                cardLayout.setMargin(true);
+                cardLayout.setMargin(false);
 
                 Avatar avatar = new Avatar(tool.getDiscription());
+                Button avatarButton = new Button(avatar);
+                avatarButton.getStyle()
+                        .set("background", "transparent")
+                        .set("border", "none")
+                        .set("color", "inherit") // optioneel: behoudt tekstkleur van parent
+                        .set("box-shadow", "none"); // optioneel: verwijdert hover-shadow
                 avatar.setHeight("32px");
                 avatar.setWidth("32px");
                 avatar.setAbbreviation(" ");
-                if(tool.getBSelected()){
+                if(tool.getbSelected()){
                     avatar.setColorIndex(5);
                 }
                 VerticalLayout infoLayout = new VerticalLayout();
@@ -1340,76 +1883,81 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 infoLayout.setPadding(false);
                 infoLayout.getElement().appendChild(
                         ElementFactory.createStrong(tool.getDiscription()));
-                //infoLayout.add(new Div(new Text(tool.getComment())));
 
-                VerticalLayout selectionLayout = new VerticalLayout();
-                selectionLayout.setSpacing(false);
-                selectionLayout.setPadding(false);
-                selectionLayout.add(new Div(new Text(tool.getComment1())));
-                NumberField nfComment1 = new NumberField();
-                NumberField nfComment2 = new NumberField();
-                selectionLayout.add(new Div(nfComment1));
-                if(tool.getComment2() != null){
-                    selectionLayout.add(new Div(new Text(tool.getComment2())));
-                    selectionLayout.add(new Div(nfComment2));
-                }
-                Button saveButton = new Button("Bewaar");
-                saveButton.addClickListener(e -> {
-                    //publish event so the selectedProductSubView can add the product...
-                    if(tool.getComment2() != null){
-                        //Tool with two items
-                        Product newProduct1 = new Product();
-                        newProduct1.setOption(true);
-                        newProduct1.setDate(LocalDate.now());
-                        newProduct1.setProductCode(tool.getAbbreviation()+"1");
-                        newProduct1.setId(tool.getAbbreviation()+"1");
-                        newProduct1.setInternalName(tool.getDiscription() + " " + tool.getComment1().replace(':' ,' '));
-                        newProduct1.setComment(tool.getDiscription() + " " + tool.getComment1().replace(':' ,' '));
-                        newProduct1.setSelectedAmount(nfComment1.getValue());
-                        selectProductSubView.addProductToSelectedProductsFromRemoteView(newProduct1);
-                        //eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",newProduct1));
+                optionDialog = new Dialog();
+                optionDialog.setWidth("35%");
+                optionDialog.setHeight("35%");
 
-                        Product newProduct2 = new Product();
-                        newProduct2.setOption(true);
-                        newProduct2.setDate(LocalDate.now());
-                        newProduct2.setProductCode(tool.getAbbreviation()+"2");
-                        newProduct2.setId(tool.getAbbreviation()+"2");
-                        newProduct2.setInternalName(tool.getDiscription() + " " + tool.getComment2().replace(':' ,' '));
-                        newProduct2.setComment(tool.getDiscription() + " " + tool.getComment2().replace(':' ,' '));
-                        newProduct2.setSelectedAmount(nfComment2.getValue());
-                        selectProductSubView.addProductToSelectedProductsFromRemoteView(newProduct2);
-                        avatar.setColorIndex(5);
-                        try {
-                            saveSelectedWorkOrder();
-                        } catch (ValidationException ex) {
-                            throw new RuntimeException(ex);
-                        }
+                avatarButton.addClickListener(e -> {
+                    optionDialog.removeAll();
+                    if((tool.equals(Tools.PERSONENKOOI))||
+                    (tool.equals(Tools.LINTZAAGMACHINE))||
+                    (tool.equals(Tools.SCHAARLIFT_JLG_KLEIN))||
+                    (tool.equals(Tools.SCHAARLIFT_JLG_GROOT))){
+                        toolsOkSubView.setSelectedTool(tool);
+                        toolsOkSubView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsOkSubView);
                     }
-                    else{
-                        //Tools with One item
-                        Product newProduct1 = new Product();
-                        newProduct1.setOption(true);
-                        newProduct1.setDate(LocalDate.now());
-                        newProduct1.setProductCode(tool.getAbbreviation()+"1");
-                        newProduct1.setId(tool.getAbbreviation()+"1");
-                        newProduct1.setInternalName(tool.getDiscription() + " " + tool.getComment1().replace(':' ,' '));
-                        newProduct1.setComment(tool.getDiscription() + " " + tool.getComment1().replace(':' ,' '));
-                        newProduct1.setSelectedAmount(nfComment1.getValue());
-                        selectProductSubView.addProductToSelectedProductsFromRemoteView(newProduct1);
-                        avatar.setColorIndex(5);
-                        try {
-                            saveSelectedWorkOrder();
-                        } catch (ValidationException ex) {
-                            throw new RuntimeException(ex);
-                        }
+                    if((tool.equals(Tools.GRIJPBAK))||
+                            (tool.equals(Tools.BREEKHAMER17TON))||
+                            (tool.equals(Tools.BREEKHAMER60TON))){
+                        toolsRegularIntenseView.setSelectedTool(tool);
+                        toolsRegularIntenseView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsRegularIntenseView);
                     }
-
+                    if((tool.equals(Tools.RUPSSCHAARLIFT))||
+                            (tool.equals(Tools.GRAAFKRAAN_1700))){
+                        toolsRegularIntenseFuelView.setSelectedTool(tool);
+                        toolsRegularIntenseFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsRegularIntenseFuelView);
+                    }
+                    if((tool.equals(Tools.SPINHOOGTEWERKER))||
+                            (tool.equals(Tools.GRAAFKRAAN_6000))||
+                            (tool.equals(Tools.GRAAFKRAAN14000))||
+                            (tool.equals(Tools.STAMPER_TRILPLAAT_65))||
+                            (tool.equals(Tools.STAMPER_TRILPLAAT_85))||
+                            (tool.equals(Tools.STAMPER_TRILPLAAT_500))){
+                        toolsFuelView.setSelectedTool(tool);
+                        toolsFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsFuelView);
+                    }
+                    if((tool.equals(Tools.BROMMER))||
+                            (tool.equals(Tools.BETONZAAGMACHINE))){
+                        toolsThicknessMeterView.setSelectedTool(tool);
+                        toolsThicknessMeterView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsThicknessMeterView);
+                    }
+                    if(
+                        (tool.equals(Tools.LASEREN))||
+                        (tool.equals(Tools.PLOOIEN))||
+                        (tool.equals(Tools.LASEREN_EN_PLOOIEN))||
+                        (tool.equals(Tools.CNC_DRAAIEN_EN_FREZEN))||
+                        (tool.equals(Tools.CNC_SNIJDEN))){
+                        toolsWorkhoursView.setSelectedTool(tool);
+                        toolsWorkhoursView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsWorkhoursView);
+                    }
+                    if((tool.equals(Tools.BALANCEREN_KLEINE_ONDERDELEN)||
+                            (tool.equals(Tools.GROTE_DRAAIBANK))||
+                            (tool.equals(Tools.KLEINE_DRAAIBANK)))){
+                        toolsFixedPriceView.setSelectedTool(tool);
+                        toolsFixedPriceView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsFixedPriceView);
+                    }
+                    if((tool.equals(Tools.OPLASSEN_PTA))){
+                        toolsPTAView.setSelectedTool(tool);
+                        toolsPTAView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsPTAView);
+                    }
+                    if((tool.equals(Tools.SPIEBAAN_DUWEN))){
+                        toolsSpyLaneView.setSelectedTool(tool);
+                        toolsSpyLaneView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        optionDialog.add(toolsSpyLaneView);
+                    }
+                    optionDialog.open();
                 });
-                selectionLayout.add(new Div(saveButton));
-                infoLayout
-                        .add(new Details("Selectie", selectionLayout));
 
-                cardLayout.add(avatar, infoLayout);
+                cardLayout.add(avatarButton, infoLayout);
                 return cardLayout;
             });
 
@@ -1418,8 +1966,10 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+        addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         updateGetImageButton();
         selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
+        selectProductSubView.setSelectedTeam(selectedTeam-1);
         addTabButton.setEnabled(true);
     }
 
@@ -1452,7 +2002,10 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         selectedWorkOrder = newWorkOrder;
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
+        workOrderBinder.validate();
+        workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+        addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
         addTabButton.setEnabled(false);
     }
@@ -1463,8 +2016,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         newWorkOrder.setWorkDateTime(LocalDateTime.now());
         newWorkOrder.setWorkOrderStatus(WorkOrderStatus.RUNNING);
         newWorkOrder.setWorkAddress(selectedWorkOrder.getWorkAddress());
-        newWorkOrder.setWorkLocation(selectedWorkOrder.getWorkLocation());
-        newWorkOrder.setWorkType(selectedWorkOrder.getWorkType());
+        //newWorkOrder.setWorkLocation(selectedWorkOrder.getWorkLocation());
+        //newWorkOrder.setWorkType(selectedWorkOrder.getWorkType());
         newWorkOrder.setWorkOrderStatus(selectedWorkOrder.getWorkOrderStatus());
 
         newWorkOrder.setLinkedWorkOrders(new ArrayList<>());
@@ -1482,6 +2035,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         newWorkOrder.setWorkOrderHeaderList(workOrderHeaders);
         List<Product>products = new ArrayList<>();
         Product product1 = new Product();
+        product1.setId("99999999");
         product1.setSelectedAmount(0.0);
         product1.setSellPrice(0.0);
         product1.setTotalPrice(0.0);
@@ -1505,7 +2059,10 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         selectedWorkOrder = newWorkOrder;
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
+        workOrderBinder.validate();
+        workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
+        addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
         Tab newTab = new Tab(selectedWorkOrder.getWorkDateTime().format(DateTimeFormatter.ofPattern("dd/MM")));
         buddyTab.add(newTab);
@@ -1528,26 +2085,31 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             UI.getCurrent().access(() -> {
                 try {
                     saveSelectedWorkOrder();
+                    selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
+                    selectProductSubView.getSelectedProductGrid().getDataProvider().refreshAll();
+                    if(event.getMessage().matches("Product verwijderd")){
+                        Notification notification = Notification.show("Artikel is verwijderd.");
+                        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    }
+                    else{
+                        Notification notification = Notification.show("Artikel is toegevoegd.");
+                        notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    }
+
                 }
                 catch (ValidationException e) {
-                    Notification notification = Notification.show(event.getMessage());
+                    Notification notification = Notification.show("Gelieve eerst de verplichte velden in te vullen aub.");
                     notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    selectProductSubView.getSelectedProductList().remove(selectProductSubView.getSelectedProductList().get(selectProductSubView.getSelectedProductList().size() - 1));
+                    selectProductSubView.getSelectedProductGrid().getDataProvider().refreshAll();
                 }
             });
         });
     }
 
-//    @Override
-//    public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
-//        //Only read new WorkOrder to start if nog parameter in the link is set.
-//        if(linkParameter == null){
-//            readNewWorkOrder();
-//        }
-//    }
 
     @Override
     public void setParameter(BeforeEvent beforeEvent,@OptionalParameter String s) {
-        //TODO open SelectedWorkOrder bij linkParameter
         if(s != null){
 
             //Open WorkOrder by an other page and search WorkOrder by linkParameter.
@@ -1559,25 +2121,27 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
                     buddyTab.removeAll();
                     //add Parent Tab
-                    CustomTab parentTab = new CustomTab();
+                    Tab parentTab = new Tab();
                     WorkOrder partentWorkOrder = selectedCoupledWorkOrders.stream().filter(item -> item.getStarter()).findFirst().get();
                     parentTab.setLabel(partentWorkOrder.getWorkDateTime().format(DateTimeFormatter.ofPattern("dd/MM")));
-                    parentTab.setWorkOrderId(partentWorkOrder.getId());
+                    parentTab.getElement().setProperty("workOrderId", partentWorkOrder.getId());
                     buddyTab.add(parentTab);
                     setSelectedWorkOrder(partentWorkOrder);
                     buddyTab.setSelectedTab(parentTab);
 
                     //Try to add ChildrenTab
                     selectedCoupledWorkOrders.stream().filter(item -> item.getStarter() == false).forEach(item -> {
-                        CustomTab childTab = new CustomTab();
+                        Tab childTab = new Tab();
                         childTab.setLabel(item.getWorkDateTime().format(DateTimeFormatter.ofPattern("dd/MM")));
-                        childTab.setWorkOrderId(item.getId());
+                        childTab.getElement().setProperty("workOrderId", item.getId());
                         buddyTab.add(childTab);
                     });
 
                     buddyTab.addSelectedChangeListener(event -> {
-                        CustomTab selectedCustomTab = (CustomTab)buddyTab.getSelectedTab();
-                        setSelectedWorkOrder(workOrderService.getWorkOrderById(selectedCustomTab.getWorkOrderId()).get());
+                        if(event.isFromClient()){
+                            Tab selectedTab = buddyTab.getSelectedTab();
+                            setSelectedWorkOrder(workOrderService.getWorkOrderById(selectedTab.getElement().getProperty("workOrderId")).get());
+                        }
                     });
                 }
                 else{

@@ -37,7 +37,7 @@ public class CustomerService {
     }
 
     public Optional<List<Customer>> getCustomerByNameOrVat(String filter) {
-       return Optional.of(customerRepo.findByNameContainingIgnoreCaseOrVatNumberContainingIgnoreCase(filter,filter));
+       return Optional.of(customerRepo.findByNameContainingIgnoreCaseOrVatNumberContainingIgnoreCaseOrAddresses_addressNameContainingIgnoreCase(filter,filter,filter));
     }
 
     public void delete(Customer customer) {
@@ -51,6 +51,7 @@ public class CustomerService {
             for(Customer customer : customers) {
                 customer.getAddresses().stream().filter(address -> (address.getInvoiceAddress() == null) ||  (address.getInvoiceAddress() != true)).forEach(address -> {
                     if((address.getAddressName() != null) && (address.getAddressName().length() > 0)) {
+                        address.setCustomerName(customer.getName());
                         addressList.add(address);
                     }
                     else{
@@ -68,5 +69,9 @@ public class CustomerService {
 
     public Optional<List<Customer>> getCustomersByStreet(String street) {
         return Optional.of(customerRepo.findByAddresses_streetContainingIgnoreCase(street));
+    }
+
+    public Optional<List<Customer>> getCustomerByWorkAddress(Address workAddress) {
+        return Optional.of(customerRepo.findByAddresses_CityAndAddresses_StreetAndAddresses_Number(workAddress.getCity(), workAddress.getStreet(), workAddress.getNumber()));
     }
 }

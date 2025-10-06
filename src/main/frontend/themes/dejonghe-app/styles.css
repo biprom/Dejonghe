@@ -20,3 +20,18 @@ vaadin-horizontal-layout.selected{
 vaadin-grid::part(option) {
     background-color: var(--lumo-success-color-10pct);
 }
+
+/*vaadin-app-layout::part(navbar) {*/
+/*    background-color: #223348; !* Lichte achtergrond voor de content *!*/
+/*}*/
+
+/*vaadin-app-layout::part(navbar) {*/
+/*    background-color: white; !* Lichte achtergrond voor de content *!*/
+/*}*/
+
+vaadin-split-layout::part(splitter) {
+    background-color: #223348;
+}
+
+
+

@@ -17,6 +17,11 @@ public class InvoiceService {
     @Autowired
     InvoiceRepo invoiceRepo;
 
+    public Optional<Invoice> getInvoiceById(String id) {
+        Optional<Invoice> optionalInvoice = Optional.of(invoiceRepo.findInvoiceById(id));
+        return optionalInvoice;
+    }
+
     public Optional<List<Invoice>> getAll() {
         List<Invoice> invoices = invoiceRepo.findAll();
         if (!invoices.isEmpty()) {
