@@ -5,6 +5,7 @@ import com.adverto.dejonghe.application.customEvents.ReloadProductListEvent;
 import com.adverto.dejonghe.application.dbservices.WorkOrderService;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
+import com.adverto.dejonghe.application.entities.enums.workorder.WorkOrderStatus;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -31,10 +32,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY_INLINE;
@@ -73,7 +71,6 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
         createReportDelete();
         createReportDetach();
         this.add(setUpGrid());
-
     }
 
     private void setUpfilters() {
@@ -128,6 +125,7 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
     private Grid<WorkOrder> setUpGrid() {
         pendingWorkOrdersGrid = new TreeGrid<>();
         treeData = new TreeData<>();
+        pendingWorkOrdersGrid.setSelectionMode(TreeGrid.SelectionMode.MULTI);
         Grid.Column<WorkOrder> columnAddress = pendingWorkOrdersGrid.addHierarchyColumn(workOrder -> workOrder.getWorkAddress().getAddressName()).setHeader("Naam").setAutoWidth(true);
         pendingWorkOrdersGrid.addColumn(workorder -> workorder.getWorkDateTime().toLocalDate().format(
                 DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -177,6 +175,30 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
                 //UI.getCurrent().getPage().executeJs("window.open($0, '_blank')", "/werkbon/"+event.getItem().getId());
             }
             eventPublisher.publishEvent(new GetSelectedWorkOrderEvent(this, selectedWorkOrder));
+        });
+
+        pendingWorkOrdersGrid.asMultiSelect().addValueChangeListener(event -> {
+            Set<WorkOrder> oldSelection = event.getOldValue();
+            Set<WorkOrder> newSelection = event.getValue();
+
+            // Toegevoegd = alles in nieuw, maar niet in oud
+            Set<WorkOrder> added = new HashSet<>(newSelection);
+            added.removeAll(oldSelection);
+
+            // Verwijderd = alles in oud, maar niet in nieuw
+            Set<WorkOrder> removed = new HashSet<>(oldSelection);
+            removed.removeAll(newSelection);
+
+            // Nu kun je gewoon doen:
+            added.forEach(selected -> {
+                List<WorkOrder> children = treeData.getChildren(selected);
+                children.forEach(child -> pendingWorkOrdersGrid.select(child));
+            });
+
+            removed.forEach(deselected -> {
+                List<WorkOrder> children = treeData.getChildren(deselected);
+                children.forEach(child -> pendingWorkOrdersGrid.deselect(child));
+            });
         });
 
         headerRow = pendingWorkOrdersGrid.appendHeaderRow();
@@ -230,9 +252,11 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
             treeData.clear();
             for(WorkOrder parent : workOrderList){
                 treeData.addItem(null, parent);
-                List<WorkOrder> children = getCoupledWorkOrders(parent);
-                for (WorkOrder child : children) {
-                    treeData.addItem(parent, child);
+                Optional<List<WorkOrder>> optChildren = getCoupledWorkOrders(parent);
+                if(!optChildren.isEmpty()){
+                    for (WorkOrder child : optChildren.get()) {
+                        treeData.addItem(parent, child);
+                    }
                 }
             }
             TreeDataProvider<WorkOrder> dataProvider = new TreeDataProvider<>(treeData);
@@ -252,9 +276,11 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
             treeData.clear();
             for(WorkOrder parent : filteredWorkOrderList){
                 treeData.addItem(null, parent);
-                List<WorkOrder> children = getCoupledWorkOrders(parent);
-                for (WorkOrder child : children) {
-                    treeData.addItem(parent, child);
+                Optional<List<WorkOrder>> optChildren = getCoupledWorkOrders(parent);
+                if(!optChildren.isEmpty()){
+                    for (WorkOrder child : optChildren.get()) {
+                        treeData.addItem(parent, child);
+                    }
                 }
             }
             TreeDataProvider<WorkOrder> dataProvider = new TreeDataProvider<>(treeData);
@@ -270,7 +296,7 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
         }
     }
 
-    public List<WorkOrder> getCoupledWorkOrders(WorkOrder starterWorkOrder) {
+    public Optional<List<WorkOrder>> getCoupledWorkOrders(WorkOrder starterWorkOrder) {
         return workOrderService.getCoupledWorkOrders(starterWorkOrder.getLinkedWorkOrders());
     }
 
@@ -316,7 +342,6 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
         Button connectBtn = new Button(VaadinIcon.CONNECT.create(),
                 clickEvent -> {
                     if((selectedWorkOrder.getStarter() != null) && (selectedWorkOrder.getStarter() == true)){
-                        //TODO find coupled workorders and set next workorder as starer + copy  coupled to the next workorder
                         List<WorkOrder> workOrderListByStarterId = workOrderService.getWorkOrderListByStarterId(selectedWorkOrder.getId());
                         WorkOrder starter = workOrderListByStarterId.stream().filter(workOrder -> workOrder.getStarter() == true).findFirst().get();
                         List<String> linkedWorkOrders = starter.getLinkedWorkOrders();
@@ -347,7 +372,6 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
                         }
                     }
                     else{
-                        //TODO detach workorder from the starter by removing the id and set workorder as starter.
                         Optional<WorkOrder> starterByLinkedId = workOrderService.getStarterByLinkedId(selectedWorkOrder.getId());
                         if(starterByLinkedId.isPresent()){
                             starterByLinkedId.get().getLinkedWorkOrders().remove(selectedWorkOrder.getId());
@@ -365,6 +389,10 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
 
                     }
                     notification.close();
+                    Optional<List<WorkOrder>>allFinishedStarters = workOrderService.getAllByStatusAndStarter(WorkOrderStatus.FINISHED, true);
+                    if(allFinishedStarters.isPresent()){
+                        addItemsToPendingWorkOrderGrid(allFinishedStarters.get());
+                    }
                 });
         connectBtn.addThemeVariants(LUMO_TERTIARY_INLINE);
         return connectBtn;
@@ -376,8 +404,15 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
                     if(selectedWorkOrders != null){
                         //when filter is selected
                         selectedWorkOrders.remove(selectedWorkOrder);
-                        pendingWorkOrdersGrid.getDataProvider().refreshAll();
                         workOrderService.delete(selectedWorkOrder);
+                        //now delete if workorder to delete is in a parent
+                        Optional<WorkOrder> optParent = workOrderService.getStarterByLinkedId(selectedWorkOrder.getId());
+                        if(optParent.isPresent()){
+                            optParent.get().getLinkedWorkOrders().remove(selectedWorkOrder.getId());
+                        }
+                        workOrderService.save(optParent.get());
+                        addItemsToPendingWorkOrderGrid(selectedWorkOrders);
+                        pendingWorkOrdersGrid.getDataProvider().refreshAll();
                         Notification.show("Werkbon is verwijderd");
                     }
                     else{

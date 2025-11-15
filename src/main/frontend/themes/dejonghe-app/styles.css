@@ -1,5 +1,9 @@
 @import url('./main-layout.css');
 
+:root {
+    --lumo-primary-color: #223348;
+}
+
 vaadin-button.special {
     --lumo-primary-text-color: cyan;
 }
@@ -17,8 +21,12 @@ vaadin-horizontal-layout.selected{
     background: lightblue;
 }
 
-vaadin-grid::part(option) {
-    background-color: var(--lumo-success-color-10pct);
+vaadin-grid::part(remark) {
+    background-color: orange;
+}
+
+vaadin-grid::part(attachement) {
+    background-color: lightblue;
 }
 
 /*vaadin-app-layout::part(navbar) {*/
@@ -31,6 +39,21 @@ vaadin-grid::part(option) {
 
 vaadin-split-layout::part(splitter) {
     background-color: #223348;
+}
+
+
+vaadin-combo-box::part(input-field) {
+    font-weight: bold;
+}
+
+/* Wanneer de combobox GEEN placeholder toont (dus waarde ingevuld) */
+vaadin-combo-box[has-value]::part(input-field) {
+    border: 2px solid green;
+}
+
+/* Wanneer de combobox LEEG is (placeholder zichtbaar) */
+vaadin-combo-box:not([has-value])::part(input-field) {
+    /*border: 2px dashed grey;*/ /* voorbeeld */
 }
 
 

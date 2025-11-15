@@ -118,7 +118,6 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         setUpMainSplitLayout();
         setUpHeaderSplitLayout();
         mainSplitLayout.addToPrimary(selectProductSubView.getLayout());
-        selectProductSubView.setUserFunction(UserFunction.ADMIN);
         VerticalLayout vLayout = new VerticalLayout();
         vLayout.add(selectProductSubView.getFilter());
         vLayout.add(selectProductSubView.getSelectedProductGrid());
@@ -478,6 +477,7 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         newInvoice.setInvoiceNumber(invoiceServices.getNewInvoiceNumber());
         selectedInvoice = newInvoice;
         invoiceBinder.readBean(selectedInvoice);
+        selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.ADMIN, selectedInvoice.getInvoiceDate());
     }
 
     @Override

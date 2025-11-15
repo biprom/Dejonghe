@@ -8,10 +8,11 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface WorkOrderRepo extends MongoRepository<WorkOrder, String> {
     List<WorkOrder>findWorkOrderByWorkOrderStatus(WorkOrderStatus status);
-    WorkOrder findWorkOrderById(String workOrderId);
+    Optional<WorkOrder> findWorkOrderById(String workOrderId);
     WorkOrder findWorkOrderByLinkedWorkOrdersContains(String id);
     WorkOrder findWorkOrderByWorkDateTime(LocalDateTime workDateTime);
     List<WorkOrder>findByWorkOrderStatusAndStarter(WorkOrderStatus status, Boolean starter);

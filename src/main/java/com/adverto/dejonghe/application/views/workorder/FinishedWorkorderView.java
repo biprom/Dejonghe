@@ -137,7 +137,7 @@ public class FinishedWorkorderView extends Div implements BeforeEnterObserver {
         }
     }
 
-    private void loadData() {
+    public void loadData() {
         allFinishedStarters = workOrderService.getAllByStatusAndStarter(WorkOrderStatus.FINISHED, true);
         if(allFinishedStarters.isPresent()){
             currtentWorkOrdersSubVieuw.addItemsToPendingWorkOrderGrid(allFinishedStarters.get());
@@ -199,7 +199,7 @@ public class FinishedWorkorderView extends Div implements BeforeEnterObserver {
         makeProFormaPerDay.addClickListener(event -> {
             Optional<Set<WorkOrder>> selectedWorkOrders = currtentWorkOrdersSubVieuw.getSelectedWorkOrders();
             if (selectedWorkOrders.isPresent()) {
-                Invoice invoice = createOngoingInvoiceService.generateMergedInvoice(selectedWorkOrders.get());
+                Invoice invoice = createOngoingInvoiceService.getnerateInvoicePerDay(selectedWorkOrders.get());
                 invoiceService.save(invoice);
             }
         });

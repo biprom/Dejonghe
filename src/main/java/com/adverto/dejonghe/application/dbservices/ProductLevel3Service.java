@@ -69,4 +69,15 @@ public class ProductLevel3Service {
             return Optional.empty();
         }
     }
+
+    public Optional<ProductLevel3> getProductLevel3ByName(String name) {
+        List<ProductLevel3> level3List = productLevel3Repo.findAll();
+        if (!level3List.isEmpty()) {
+            Collections.sort(level3List, (o1, o2) -> (o1.getName().compareTo(o2.getName())));
+            return Optional.of(level3List.stream().filter(item -> item.getName().toLowerCase().matches(name.toLowerCase())).findFirst().orElse(null));
+        }
+        else{
+            return Optional.empty();
+        }
+    }
 }

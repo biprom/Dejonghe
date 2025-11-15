@@ -31,6 +31,7 @@ public class ToolsThicknessMeterView extends VerticalLayout {
     List<Product> selectedProducts;
     Integer depth = 1;
     Integer meters = 1;
+    Integer selectedTeam;
 
     TextField tfThickness;
     TextField tfRunningMeter;
@@ -98,11 +99,18 @@ public class ToolsThicknessMeterView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
-            productToAdd.setSelectedAmount(Double.valueOf(meters));
-            productToAdd.setInternalName(selectedTool.getDiscription() + " diepte [cm] : " + depth + " aantal meter : " + meters );
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            productToAdd.setSelectedAmount(1.0);
+            productToAdd.setTeamNumber(selectedTeam);
             selectedProducts.add(productToAdd);
+
+            Product productToAdd2 = new Product();
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd2.setProductLevel1(productToAdd.getProductLevel1());
+            productToAdd2.setSelectedAmount(1.0);
+            productToAdd2.setTeamNumber(selectedTeam);
+            productToAdd2.setInternalName(selectedTool.getDiscription() + " diepte [cm] : " + depth + " aantal meter : " + meters );
+            selectedProducts.add(productToAdd2);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
         });
@@ -112,13 +120,14 @@ public class ToolsThicknessMeterView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         depth = 1;
         tfThickness.setValue(depth.toString());
         meters = 1;
         tfRunningMeter.setValue(meters.toString());
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

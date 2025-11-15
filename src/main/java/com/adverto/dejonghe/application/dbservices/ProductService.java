@@ -1,10 +1,14 @@
 package com.adverto.dejonghe.application.dbservices;
 
-import com.adverto.dejonghe.application.entities.product.product.Product;
+import com.adverto.dejonghe.application.entities.product.product.*;
 import com.adverto.dejonghe.application.repos.ProductRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -13,6 +17,9 @@ import java.util.regex.Pattern;
 public class ProductService {
     @Autowired
     ProductRepo productRepo;
+
+    @Autowired
+    MongoTemplate mongoTemplate;
 
     public Optional<List<Product>>findByProductCodeContaining(String productCode) {
         Optional<List<Product>> optionalProducts = Optional.of(productRepo.findByProductCodeContainsIgnoreCase(productCode));
@@ -38,6 +45,11 @@ public class ProductService {
 
     public Optional<Product> get(String id) {
         Optional<Product> optionalProduct = productRepo.findById(id);
+        return optionalProduct;
+    }
+
+    public Optional<List<Product>> getProductsById(List<String> idList) {
+        Optional<List<Product>> optionalProduct = Optional.of(productRepo.findAllById(idList));
         return optionalProduct;
     }
 
@@ -163,6 +175,16 @@ public class ProductService {
         }
     }
 
+    public Optional<List<Product>> getAllSets() {
+        List<Product> products = productRepo.findBySet(true);
+        if (!products.isEmpty()) {
+            return Optional.of(products);
+        }
+        else{
+            return Optional.empty();
+        }
+    }
+
     public Optional<Product> getWorkhourForRegularLocalAgro(){
         return productRepo.findById("6878b9da8ebc04229d261455");
     }
@@ -252,5 +274,44 @@ public class ProductService {
         return productRepo.findById("6878ba088ebc04229d261467");
     }
 
+    public List<Product> findProductsByLevels(
+            ProductLevel1 level1,
+            ProductLevel2 level2,
+            ProductLevel3 level3,
+            ProductLevel4 level4,
+            ProductLevel5 level5,
+            ProductLevel6 level6,
+            ProductLevel7 level7
+    ) {
+        Criteria criteria = new Criteria();
+
+        // Dynamisch criteria toevoegen per level
+        if (level1 != null) addLevelCriteria(criteria, "productLevel1", level1);
+        if (level2 != null) addLevelCriteria(criteria, "productLevel2", level2);
+        if (level3 != null) addLevelCriteria(criteria, "productLevel3", level3);
+        if (level4 != null) addLevelCriteria(criteria, "productLevel4", level4);
+        if (level5 != null) addLevelCriteria(criteria, "productLevel5", level5);
+        if (level6 != null) addLevelCriteria(criteria, "productLevel6", level6);
+        if (level7 != null) addLevelCriteria(criteria, "productLevel7", level7);
+
+        Query query = new Query(criteria);
+        return mongoTemplate.find(query, Product.class);
+    }
+
+    private void addLevelCriteria(Criteria baseCriteria, String fieldName, Object level) {
+        try {
+            var clazz = level.getClass();
+            var id = (String) clazz.getMethod("getId").invoke(level);
+            var name = (String) clazz.getMethod("getName").invoke(level);
+            var time = (LocalDateTime) clazz.getMethod("getTime").invoke(level);
+
+            if (id != null) baseCriteria.and(fieldName + ".id").is(id);
+            if (name != null) baseCriteria.and(fieldName + ".name").is(name);
+            if (time != null) baseCriteria.and(fieldName + ".time").is(time);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Fout bij reflectie van " + fieldName, e);
+        }
+    }
 
 }

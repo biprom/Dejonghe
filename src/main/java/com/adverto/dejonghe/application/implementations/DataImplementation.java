@@ -7,7 +7,6 @@ import net.sf.jasperreports.engine.JRField;
 
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.Locale;
 
 public class DataImplementation implements JRDataSource {
 
-    DecimalFormat df = new DecimalFormat("#.00");
+    DecimalFormat df = new DecimalFormat("0.00");
     NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
     DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private int lastFiledAdded;
@@ -42,27 +41,69 @@ public class DataImplementation implements JRDataSource {
     public Object getFieldValue(JRField jrField) throws JRException {
         if (jrField.getName().equals("Datum")) {
             try{
-                return products.get(lastFiledAdded).getDate().format(dateTimeFormatter).toString();
+                if((products.get(lastFiledAdded).getShowDate()) && (products.get(lastFiledAdded).getDate() != null)){
+                    return products.get(lastFiledAdded).getDate().format(dateTimeFormatter).toString();
+                }
+                else{
+                    return null;
+                }
             }
             catch (Exception e){
-                return LocalDateTime.now().format(dateTimeFormatter).toString();
+                return null;
             }
 
         } else if (jrField.getName().equals("Omschrijving")) {
             return products.get(lastFiledAdded).getInternalName();
         } else if (jrField.getName().equals("Aantal")) {
-            return products.get(lastFiledAdded).getSelectedAmount().toString();
-        } else if (jrField.getName().equals("Eenheidsprijs")) {
             try{
-                return df.format(products.get(lastFiledAdded).getSellPrice());
+                String product =  products.get(lastFiledAdded).getSelectedAmount().toString().replace('.',',');
+                if (product.endsWith(",0")) {
+                    product = product.substring(0, product.length() - 2);
+                }
+                if(product.equals("0")){
+                    return null;
+                }
+                return product;
             }
             catch (Exception e){
                 return null;
             }
+        } else if (jrField.getName().equals("Eenheidsprijs")) {
+            try{
+                if(products.get(lastFiledAdded).getSellPrice() != null){
+                    if(products.get(lastFiledAdded).getSellPrice().equals(0.0)){
+                        return null;
+                    }
+                    return String.format("%.2f", products.get(lastFiledAdded).getSellPrice() ) + "€";
+                }
+                else{
+                    return "";
+                }
+            }
+            catch (Exception e){
+                return "";
+            }
         } else if (jrField.getName().equals("Totaal")) {
-            return df.format(products.get(lastFiledAdded).getTotalPrice());
+            if(products.get(lastFiledAdded).getTotalPrice() != null){
+                if(products.get(lastFiledAdded).getTotalPrice().equals(0.0)){
+                    return null;
+                }
+                return products.get(lastFiledAdded).getTotalPrice();
+            }
+            return null;
         } else if (jrField.getName().equals("btwStatus")) {
-            return products.get(lastFiledAdded).getVat().getDiscription();
+            if(products.get(lastFiledAdded).getSelectedAmount() != null){
+                if(!products.get(lastFiledAdded).getSelectedAmount().equals(0.0)){
+                    return products.get(lastFiledAdded).getVat().getDiscription();
+                }
+                else{
+                    return null;
+                }
+            }
+            else {
+                return null;
+            }
+
         }
         return "";
     }

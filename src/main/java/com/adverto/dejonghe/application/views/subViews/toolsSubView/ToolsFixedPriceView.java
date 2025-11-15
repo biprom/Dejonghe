@@ -34,6 +34,7 @@ public class ToolsFixedPriceView extends VerticalLayout {
     List<Product> selectedProducts;
     Integer amountWorkhours = 1;
     TextField tfWorkhours;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsFixedPriceView(ProductService productService,
@@ -79,6 +80,7 @@ public class ToolsFixedPriceView extends VerticalLayout {
             if(productListToAdd.isPresent()) {
                 Product productToAdd = productListToAdd.get().getFirst();
                 productToAdd.setVat(VAT.EENENTWINTIG);
+                productToAdd.setTeamNumber(selectedTeam);
                 productToAdd.setDate(LocalDate.now());
                 productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
                 selectedProducts.add(productToAdd);
@@ -91,11 +93,12 @@ public class ToolsFixedPriceView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         amountWorkhours = 1;
         tfWorkhours.setValue(String.valueOf(amountWorkhours));
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

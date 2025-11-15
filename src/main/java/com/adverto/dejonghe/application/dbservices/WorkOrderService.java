@@ -49,7 +49,7 @@ public class WorkOrderService {
     }
 
     public Optional<WorkOrder> getWorkOrderById(String id) {
-        Optional<WorkOrder> optionalWorkOrder = Optional.of(workOrderRepo.findWorkOrderById(id));
+        Optional<WorkOrder> optionalWorkOrder = workOrderRepo.findWorkOrderById(id);
         return optionalWorkOrder;
     }
 
@@ -71,26 +71,28 @@ public class WorkOrderService {
         return save.getId();
     }
 
-    public List<WorkOrder> getCoupledWorkOrders(List<String> linkedWorkOrders) {
-        workOrderList.clear();
-        for (String linkedWorkOrder : linkedWorkOrders) {
-            Optional<WorkOrder> optionalWorkOrder = Optional.of(workOrderRepo.findWorkOrderById(linkedWorkOrder));
-            if (optionalWorkOrder.isPresent()) {
-                workOrderList.add(optionalWorkOrder.get());
+    public Optional<List<WorkOrder>> getCoupledWorkOrders(List<String> linkedWorkOrders) {
+        if(linkedWorkOrders != null){
+            workOrderList.clear();
+            for (String linkedWorkOrder : linkedWorkOrders) {
+                Optional<WorkOrder> optionalWorkOrder = workOrderRepo.findWorkOrderById(linkedWorkOrder);
+                if (!optionalWorkOrder.isEmpty()) {
+                    workOrderList.add(optionalWorkOrder.get());
+                }
             }
         }
-        return workOrderList;
+        return Optional.of(workOrderList);
     }
 
     public List<WorkOrder> getWorkOrderListByStarterId(String starterId) {
         workOrderList.clear();
-        WorkOrder starter = workOrderRepo.findWorkOrderById(starterId);
-        if (starter != null) {
-            workOrderList.add(starter);
+        Optional<WorkOrder> optStarter = workOrderRepo.findWorkOrderById(starterId);
+        if (optStarter.isPresent()) {
+            workOrderList.add(optStarter.get());
         }
-        if((starter.getLinkedWorkOrders() != null) && (!starter.getLinkedWorkOrders().isEmpty())) {
-            for(String id : starter.getLinkedWorkOrders()){
-                Optional<WorkOrder> optionalWorkOrder = Optional.of(workOrderRepo.findWorkOrderById(id));
+        if((optStarter.get().getLinkedWorkOrders() != null) && (!optStarter.get().getLinkedWorkOrders().isEmpty())) {
+            for(String id : optStarter.get().getLinkedWorkOrders()){
+                Optional<WorkOrder> optionalWorkOrder = workOrderRepo.findWorkOrderById(id);
                 if (optionalWorkOrder.isPresent()) {
                     workOrderList.add(optionalWorkOrder.get());
                 }

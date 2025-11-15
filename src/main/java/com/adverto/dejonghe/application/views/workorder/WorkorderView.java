@@ -234,8 +234,6 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         this.toolsPTAView = toolsPTAView;
         this.toolsFixedPriceView = toolsFixedPriceView;
 
-
-        selectProductSubView.setUserFunction(UserFunction.TECHNICIAN);
         setUpImageDialog();
         setUpCurrentWorkOrderDialog();
         setUpFinishWorkOrderDialog();
@@ -1017,6 +1015,18 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     return true;
                 }, "Verplichte invulling nodig wegens keuze verplaatsing")
                 .bind(WorkOrderHeader::getFleet, WorkOrderHeader::setFleet);
+        workOrderHeaderBinder.forField(fleetWorkTypeComboBox)
+                .withValidator(value -> {
+                    Fleet fleet = fleetComboBox.getValue();
+                    if(value != null){
+                        return true;
+                    }
+                    if (Fleet.TRUCK_CRANE.equals(fleet)) {
+                        return false;
+                    }
+                    return true;
+                }, "Verplichte invulling nodig wegens keuze kraan")
+                .bind(WorkOrderHeader::getFleetWorkType, WorkOrderHeader::setFleetWorkType);
         workOrderHeaderBinder.forField(tfFleetHours)
                 .withNullRepresentation("")
                 .withConverter(new StringToDoubleConverter("Dit is geen decimaal getal!"))
@@ -1040,18 +1050,6 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 .withNullRepresentation("")
                 .withConverter(new StringToDoubleConverter("Dit is geen decimaal getal!"))
                 .bind(WorkOrderHeader::getTunnelTax, WorkOrderHeader::setTunnelTax);
-        workOrderHeaderBinder.forField(fleetWorkTypeComboBox)
-                .withValidator(value -> {
-                    Fleet fleet = fleetComboBox.getValue();
-                    if(value != null){
-                        return true;
-                    }
-                    if (Fleet.TRUCK_CRANE.equals(fleet)) {
-                        return false;
-                    }
-                    return true;
-                }, "Verplichte invulling nodig wegens keuze kraan")
-                .bind(WorkOrderHeader::getFleetWorkType, WorkOrderHeader::setFleetWorkType);
         workOrderHeaderBinder.addValueChangeListener(workOrderHeader -> {
             try {
                 saveSelectedWorkOrder();
@@ -1893,20 +1891,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     (tool.equals(Tools.LINTZAAGMACHINE))||
                     (tool.equals(Tools.SCHAARLIFT_JLG_KLEIN))||
                     (tool.equals(Tools.SCHAARLIFT_JLG_GROOT))){
-                        toolsOkSubView.setSelectedTool(tool);
+                        toolsOkSubView.setSelectedToolTeam(tool, selectedTeam-1);
                         toolsOkSubView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsOkSubView);
                     }
                     if((tool.equals(Tools.GRIJPBAK))||
                             (tool.equals(Tools.BREEKHAMER17TON))||
                             (tool.equals(Tools.BREEKHAMER60TON))){
-                        toolsRegularIntenseView.setSelectedTool(tool);
+                        toolsRegularIntenseView.setSelectedToolTeam(tool, selectedTeam-1);
                         toolsRegularIntenseView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsRegularIntenseView);
                     }
                     if((tool.equals(Tools.RUPSSCHAARLIFT))||
                             (tool.equals(Tools.GRAAFKRAAN_1700))){
-                        toolsRegularIntenseFuelView.setSelectedTool(tool);
+                        toolsRegularIntenseFuelView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsRegularIntenseFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsRegularIntenseFuelView);
                     }
@@ -1916,13 +1914,13 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                             (tool.equals(Tools.STAMPER_TRILPLAAT_65))||
                             (tool.equals(Tools.STAMPER_TRILPLAAT_85))||
                             (tool.equals(Tools.STAMPER_TRILPLAAT_500))){
-                        toolsFuelView.setSelectedTool(tool);
+                        toolsFuelView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsFuelView);
                     }
                     if((tool.equals(Tools.BROMMER))||
                             (tool.equals(Tools.BETONZAAGMACHINE))){
-                        toolsThicknessMeterView.setSelectedTool(tool);
+                        toolsThicknessMeterView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsThicknessMeterView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsThicknessMeterView);
                     }
@@ -1932,24 +1930,24 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                         (tool.equals(Tools.LASEREN_EN_PLOOIEN))||
                         (tool.equals(Tools.CNC_DRAAIEN_EN_FREZEN))||
                         (tool.equals(Tools.CNC_SNIJDEN))){
-                        toolsWorkhoursView.setSelectedTool(tool);
+                        toolsWorkhoursView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsWorkhoursView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsWorkhoursView);
                     }
                     if((tool.equals(Tools.BALANCEREN_KLEINE_ONDERDELEN)||
                             (tool.equals(Tools.GROTE_DRAAIBANK))||
                             (tool.equals(Tools.KLEINE_DRAAIBANK)))){
-                        toolsFixedPriceView.setSelectedTool(tool);
+                        toolsFixedPriceView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsFixedPriceView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsFixedPriceView);
                     }
                     if((tool.equals(Tools.OPLASSEN_PTA))){
-                        toolsPTAView.setSelectedTool(tool);
+                        toolsPTAView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsPTAView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsPTAView);
                     }
                     if((tool.equals(Tools.SPIEBAAN_DUWEN))){
-                        toolsSpyLaneView.setSelectedTool(tool);
+                        toolsSpyLaneView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsSpyLaneView.setSelectedProducts(selectedWorkOrder.getProductList());
                         optionDialog.add(toolsSpyLaneView);
                     }
@@ -1964,11 +1962,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         selectedWorkOrder = workOrder;
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
+        selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
         addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         updateGetImageButton();
-        selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
         selectProductSubView.setSelectedTeam(selectedTeam-1);
+        selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
         addTabButton.setEnabled(true);
     }
 
@@ -1996,17 +1995,21 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         product1.setSellPrice(0.0);
         product1.setTotalPrice(0.0);
         product1.setVat(VAT.EENENTWINTIG);
+        product1.setTeamNumber(0);
         products.add(product1);
         newWorkOrder.setProductList(products);
         selectedWorkOrder = newWorkOrder;
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
+        selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
         workOrderBinder.validate();
         workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
         addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
         addTabButton.setEnabled(false);
+        finishButton.setVisible(true);
+        saveWorkOrderButton.setVisible(true);
     }
 
     private void createNewLinkedWorkOrder(WorkOrder starterWorkOrder) throws ValidationException {
@@ -2039,6 +2042,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         product1.setSellPrice(0.0);
         product1.setTotalPrice(0.0);
         product1.setVat(VAT.EENENTWINTIG);
+        product1.setTeamNumber(0);
         products.add(product1);
         newWorkOrder.setProductList(products);
         String id = workOrderService.save(newWorkOrder);
@@ -2058,6 +2062,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         selectedWorkOrder = newWorkOrder;
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
+        selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
         workOrderBinder.validate();
         workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
@@ -2142,6 +2147,16 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                             setSelectedWorkOrder(workOrderService.getWorkOrderById(selectedTab.getElement().getProperty("workOrderId")).get());
                         }
                     });
+
+                    //show save button and send to Proforma if selectedWorkOrder is not Finished
+                    if(!selectedWorkOrder.getWorkOrderStatus().equals(WorkOrderStatus.FINISHED)){
+                        finishButton.setVisible(true);
+                        saveWorkOrderButton.setVisible(true);
+                    }
+                    else{
+                        finishButton.setVisible(false);
+                        saveWorkOrderButton.setVisible(false);
+                    }
                 }
                 else{
                     Notification show = Notification.show("Deze werkbon kon niet worden geopend!");

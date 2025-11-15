@@ -4,6 +4,7 @@ import com.adverto.dejonghe.application.views.Staff.EmployeeView;
 import com.adverto.dejonghe.application.views.Suppliers.SupplierView;
 import com.adverto.dejonghe.application.views.articles.ArticleView;
 import com.adverto.dejonghe.application.views.articles.ImportArticleView;
+import com.adverto.dejonghe.application.views.articles.ImportArticleViewNieuw;
 import com.adverto.dejonghe.application.views.customers.CustomerView;
 import com.adverto.dejonghe.application.views.invoice.NewInvoiceView;
 import com.adverto.dejonghe.application.views.invoice.ProformaInvoiceView;
@@ -98,6 +99,9 @@ public class MainLayout extends AppLayout {
 
     private SideNav createNavigation() {
         nav = new SideNav();
+        SideNavItem importProductLinkNieuw = new SideNavItem("Import Artikelen Nieuw",
+                ImportArticleViewNieuw.class, VaadinIcon.COG.create());
+        importProductLinkNieuw.addClassName("sidenav-button");
         SideNavItem importProductLink = new SideNavItem("Import Artikelen",
                 ImportArticleView.class, VaadinIcon.COG.create());
         importProductLink.addClassName("sidenav-button");
@@ -109,7 +113,7 @@ public class MainLayout extends AppLayout {
                 VaadinIcon.WRENCH.create()));
         invoiceLink.addItem(new SideNavItem("Facturen", NewInvoiceView.class,
                 VaadinIcon.WRENCH.create()));
-        SideNavItem workOrderLink = new SideNavItem("Werkbon");
+        SideNavItem workOrderLink = new SideNavItem("Werkbon", WorkorderView.class, VaadinIcon.BOOK.create());
         workOrderLink.addItem(new SideNavItem("Nieuw", WorkorderView.class,
                 VaadinIcon.WRENCH.create()));
         workOrderLink.addItem(new SideNavItem("Openstaand", PendingWorkorderView.class,
@@ -129,7 +133,21 @@ public class MainLayout extends AppLayout {
         SideNavItem supplierLink = new SideNavItem("Leveranciers",
                 SupplierView.class, VaadinIcon.TRUCK.create());
 
-        nav.addItem(importProductLink,productLink, customerLink,technicianLink,invoiceLink,supplierLink,workOrderLink);
+        SideNavItem spacer1 = new SideNavItem(" "); // of een ander teken, bv. "—"
+        spacer1.setEnabled(false); // maakt het niet klikbaar
+        spacer1.getElement().getClassList().add("spacer-item");
+
+        SideNavItem spacer2 = new SideNavItem(" "); // of een ander teken, bv. "—"
+        spacer2.setEnabled(false); // maakt het niet klikbaar
+        spacer2.getElement().getClassList().add("spacer-item");
+
+        SideNavItem spacer3 = new SideNavItem(" "); // of een ander teken, bv. "—"
+        spacer3.setEnabled(false); // maakt het niet klikbaar
+        spacer3.getElement().getClassList().add("spacer-item");
+
+
+
+        nav.addItem(importProductLinkNieuw, importProductLink,productLink,spacer1,supplierLink,customerLink,technicianLink,spacer2,workOrderLink,spacer3,invoiceLink);
 
 //        List<MenuEntry> menuEntries = MenuConfiguration.getMenuEntries();
 //        menuEntries.forEach(entry -> {

@@ -30,7 +30,8 @@ public class ToolsSpyLaneView extends VerticalLayout {
     Tools selectedTool;
     List<Product> selectedProducts;
     ComboBox<Integer>cbWidthSpyLane;
-    RadioButtonGroup<String> radioGroup;
+    RadioButtonGroup<SpyLaneMaterial> radioGroup;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsSpyLaneView(ProductService productService,
@@ -42,7 +43,8 @@ public class ToolsSpyLaneView extends VerticalLayout {
 
         radioGroup = new RadioButtonGroup<>();
         radioGroup.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
-        radioGroup.setItems(SpyLaneMaterial.IRON.getDiscription(),SpyLaneMaterial.RVS.getDiscription());
+        radioGroup.setItemLabelGenerator(item -> item.getDiscription());
+        radioGroup.setItems(SpyLaneMaterial.values());
 
         this.setAlignItems(Alignment.CENTER);
         this.add(title);
@@ -64,10 +66,10 @@ public class ToolsSpyLaneView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry() + "_" + cbWidthSpyLane.getValue() + "_" + radioGroup.getValue().getElement()).get().get(0);
             productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setSelectedAmount(1.0);
-            productToAdd.setInternalName(selectedTool.getDiscription()+ " materiaal : " + radioGroup.getValue() + " breedte : " + cbWidthSpyLane.getValue().toString());
             selectedProducts.add(productToAdd);
 
 
@@ -79,9 +81,10 @@ public class ToolsSpyLaneView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         title.setText(selectedTool.getDiscription() + " selecteren?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

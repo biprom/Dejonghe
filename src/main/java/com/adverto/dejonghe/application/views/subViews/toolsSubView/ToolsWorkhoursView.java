@@ -30,6 +30,7 @@ public class ToolsWorkhoursView extends VerticalLayout {
     Tools selectedTool;
     List<Product> selectedProducts;
     Integer amountWorkhours = 15;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsWorkhoursView(ProductService productService,
@@ -71,10 +72,15 @@ public class ToolsWorkhoursView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
-            productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
-            productToAdd.setInternalName("Minuten : " + selectedTool.getDiscription());
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            try{
+                productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours)/60.0);
+            }
+            catch (Exception ex){
+                productToAdd.setSelectedAmount(Double.valueOf(0));
+            }
+            productToAdd.setTeamNumber(selectedTeam);
+            productToAdd.setInternalName(selectedTool.getDiscription());
             selectedProducts.add(productToAdd);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
@@ -86,9 +92,10 @@ public class ToolsWorkhoursView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer seletedTeam) {
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = seletedTeam;
     }
 
     public List<Product> getSelectedProducts() {

@@ -35,6 +35,7 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
     List<Product> selectedProducts;
     Integer amountFuel = 1;
     TextField tfFuel;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsRegularIntenseFuelView(ProductService productService,
@@ -47,6 +48,16 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
         radioGroup = new RadioButtonGroup<>();
         radioGroup.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
         radioGroup.setItems(ToolsLabor.REGULAR.getDiscription(),ToolsLabor.INTENSE.getDiscription());
+        radioGroup.addValueChangeListener(event -> {
+            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_INT",""));
+            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_ALG",""));
+            if(event.getValue().equals(ToolsLabor.INTENSE.getDiscription())){
+                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_INT");
+            }
+            else{
+                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_ALG");
+            }
+        });
 
         Button okButton = new Button("Voeg toe");
         setUpOkButton(okButton);
@@ -80,15 +91,16 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
-            productToAdd.setSelectedAmount(1.0);
-            productToAdd.setInternalName(selectedTool.getDiscription() + " "+ radioGroup.getValue());
-            Product productToAdd2 = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
-            productToAdd2.setSelectedAmount(Double.valueOf(amountFuel));
-            productToAdd2.setInternalName("Brandstof");
+
+            Product productToAdd = productService.findByProductCodeContaining("BRANDSTOF").get().get(0);
+            productToAdd.setSelectedAmount(Double.valueOf(amountFuel));
+            productToAdd.setTeamNumber(selectedTeam);
+            productToAdd.setInternalName("Brandstof : " + selectedTool.getDiscription());
             selectedProducts.add(productToAdd);
+
+            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            productToAdd2.setSelectedAmount(1.0);
+            productToAdd2.setTeamNumber(selectedTeam);
             selectedProducts.add(productToAdd2);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
@@ -99,11 +111,12 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         amountFuel = 1;
         tfFuel.setValue(amountFuel.toString());
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

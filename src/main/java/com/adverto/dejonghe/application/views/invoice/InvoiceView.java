@@ -31,6 +31,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -71,7 +72,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     SplitLayout headerSplitLayout;
     FormLayout headerFormLayout;
     Dialog searchCustomerDialog;
-    Dialog finishWorkOrderDialog;
+    Dialog finishInvoiceDialog;
 
     Customer selectedCustomer;
     Address selectedAddress;
@@ -83,6 +84,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     Span badge;
     TextField tfInvoiceNumber;
     DatePicker invoiceDatePicker;
+    DatePicker expiryDatePicker;
     //ComboBox<InvoiceStatus> invoiceStatusComboBox;
     TextArea invoiceCommentTextArea;
 
@@ -93,8 +95,8 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
 
     Binder<Invoice>invoiceBinder;
 
-    Button saveButton = new Button("Bewaar proforma");
-    Button toInvoiceButton = new Button("Bewaar als Factuur");
+    Button generateInvoiceButton = new Button("maak factuur");
+    Button showPDFButton = new Button("bekijk PDF");
 
     String linkParameter;
 
@@ -129,7 +131,6 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         setUpMainSplitLayout();
         setUpHeaderSplitLayout();
         mainSplitLayout.addToPrimary(selectProductSubView.getLayout());
-        selectProductSubView.setUserFunction(UserFunction.ADMIN);
         VerticalLayout vLayout = new VerticalLayout();
         vLayout.add(selectProductSubView.getFilter());
         vLayout.add(selectProductSubView.getSelectedProductGrid());
@@ -148,38 +149,38 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     }
 
     private void setUpToInvoiceButton() {
-        toInvoiceButton.setWidth("50%");
-        toInvoiceButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+        showPDFButton.setWidth("50%");
+        showPDFButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_WARNING);
-        toInvoiceButton.addClickListener(e -> {
+        showPDFButton.addClickListener(e -> {
             invoiceServices.generateInvoicePDF(selectedInvoice);
         });
     }
 
     private void setUpFinishButton() {
-        saveButton.setWidth("50%");
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+        generateInvoiceButton.setWidth("50%");
+        generateInvoiceButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_WARNING);
-        saveButton.addClickListener(e -> {
-            finishWorkOrderDialog.open();
+        generateInvoiceButton.addClickListener(e -> {
+            finishInvoiceDialog.open();
         });
     }
 
     private void setUpFinishWorkOrderDialog() {
-        finishWorkOrderDialog = new Dialog();
-        finishWorkOrderDialog.setHeaderTitle("Ben je zeker dat je deze factuur wil bewaren?");
+        finishInvoiceDialog = new Dialog();
+        finishInvoiceDialog.setHeaderTitle("Ben je zeker dat je deze factuur wil afwerken?");
 
         VerticalLayout dialogLayout = createDialogLayout();
-        finishWorkOrderDialog.add(dialogLayout);
+        finishInvoiceDialog.add(dialogLayout);
 
-        Button saveButton = createSaveButton(finishWorkOrderDialog);
-        Button cancelButton = new Button("Niet Bewaren", e -> finishWorkOrderDialog.close());
-        finishWorkOrderDialog.getFooter().add(cancelButton);
-        finishWorkOrderDialog.getFooter().add(saveButton);
+        Button saveButton = createSaveButton(finishInvoiceDialog);
+        Button cancelButton = new Button("Niet Afwerken", e -> finishInvoiceDialog.close());
+        finishInvoiceDialog.getFooter().add(cancelButton);
+        finishInvoiceDialog.getFooter().add(saveButton);
     }
 
     private Button createSaveButton(Dialog dialog) {
-        Button saveButton = new Button("Bewaren");
+        Button saveButton = new Button("Afwerken");
         saveButton.addClickListener(click -> {
             dialog.close();
             try {
@@ -187,11 +188,10 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
                 invoiceBinder.writeBean(selectedInvoice);
                 selectedInvoice.setProductList(selectProductSubView.getSelectedProductList());
                 invoiceService.save(selectedInvoice);
-                Notification.show("Deze factuur is bewaard");
+                Notification.show("Deze factuur is afgewerkt");
             } catch (ValidationException e) {
-                Notification.show("Deze factuur kon niet worden bewaard.");
+                Notification.show("Deze factuur kon niet worden afgewerkt.");
             }
-            readNewInvoice();
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         return saveButton;
@@ -219,6 +219,9 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         invoiceBinder.forField(invoiceDatePicker)
                 .asRequired("Elke factuur moet een factuurdatum hebben!")
                 .bind(Invoice::getInvoiceDate, Invoice::setInvoiceDate);
+        invoiceBinder.forField(expiryDatePicker)
+                .asRequired("Elke factuur moet een vevaldatum hebben!")
+                .bind(Invoice::getExpiryDate, Invoice::setExpiryDate);
         invoiceBinder.forField(customerComboBox)
                 .asRequired("Gelieve een klant te selecteren!")
                 .bind(Invoice::getCustomer, Invoice::setCustomer);
@@ -226,7 +229,6 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
 //                .asRequired("Gelieve een status te selecteren!")
 //                .bind(Invoice::getInvoiceStatus, Invoice::setInvoiceStatus);
         invoiceBinder.forField(invoiceCommentTextArea)
-                .asRequired("Gelieve een omschrijving te geven!")
                 .bind(Invoice::getDiscription, Invoice::setDiscription);
         invoiceBinder.forField(checkbToCheck)
                 .withNullRepresentation(false)
@@ -287,17 +289,33 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         vLayout.add(getCustomerCard());
         vLayout.add(getInvoiceNumber());
         vLayout.add(getInvoiceDatePicker());
+        vLayout.add(getExpiryDatePicker());
         //vLayout.add(getInvoiceStatusPicker());
         return vLayout;
     }
 
     private VerticalLayout getSecondStepHeader() {
         VerticalLayout vLayout = new VerticalLayout();
+
+        VerticalLayout checkVLayout = new VerticalLayout();
+        VerticalLayout buttonVLayout = new VerticalLayout();
+
+        HorizontalLayout hLayout = new HorizontalLayout();
+        hLayout.setWidth("100%");
+
+        checkVLayout.add(getToCheck());
+        checkVLayout.add(getApproved());
+        checkVLayout.add(getRejected());
+
+        buttonVLayout.add(generateInvoiceButton);
+        buttonVLayout.add(showPDFButton);
+
+
+        hLayout.add(checkVLayout, buttonVLayout);
+
         vLayout.setSizeFull();
-        vLayout.add(getInvoiceCommentTextArea());
-        vLayout.add(getToCheck());
-        vLayout.add(getApproved());
-        vLayout.add(getRejected());
+        vLayout.add(getInvoiceCommentTextArea(),hLayout);
+
         return vLayout;
     }
 
@@ -308,11 +326,21 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
 
     private Checkbox getApproved() {
         checkbApproved = new Checkbox("GOEDGEKEURD");
+        checkbApproved.addValueChangeListener(value -> {
+            if(value.getValue()){
+                checkbRejected.setValue(false);
+            }
+        });
         return checkbApproved;
     }
 
     private Checkbox getRejected() {
         checkbRejected = new Checkbox("AFGEKEURD");
+        checkbRejected.addValueChangeListener(value -> {
+            if(value.getValue()){
+                checkbApproved.setValue(false);
+            }
+        });
         return checkbRejected;
     }
 
@@ -321,8 +349,6 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         vLayout.setSizeFull();
         vLayout.add(dropEnabledUpload);
         vLayout.add(showImageButton);
-        vLayout.add(saveButton);
-        vLayout.add(toInvoiceButton);
         return vLayout;
     }
 
@@ -345,7 +371,17 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         invoiceDatePicker = new DatePicker();
         invoiceDatePicker.setSizeFull();
         invoiceDatePicker.setValue(LocalDate.now());
+        invoiceDatePicker.addValueChangeListener(event -> {
+            expiryDatePicker.setValue(event.getValue().plusDays(14));
+        });
         return invoiceDatePicker;
+    }
+
+    private DatePicker getExpiryDatePicker() {
+        expiryDatePicker = new DatePicker();
+        expiryDatePicker.setSizeFull();
+        expiryDatePicker.setValue(LocalDate.now().plusDays(14));
+        return expiryDatePicker;
     }
 
     private Component getCustomerCard() {
@@ -411,11 +447,13 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         headerSplitLayout = new SplitLayout();
         headerSplitLayout.setSizeFull();
         headerSplitLayout.setOrientation(SplitLayout.Orientation.VERTICAL);
+        headerSplitLayout.setSplitterPosition(35);
     }
 
     private void setUpUpload() {
         dropEnabledUpload.setVisible(false);
         dropEnabledUpload.setWidthFull();
+        dropEnabledUpload.setAcceptedFileTypes("image/tiff", ".jpeg");
         dropEnabledUpload.setAcceptedFileTypes("image/tiff", ".jpeg");
         dropEnabledUpload.addFileRejectedListener(event -> {
             String errorMessage = event.getErrorMessage();
@@ -518,6 +556,9 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         newInvoice.setInvoiceNumber(invoiceServices.getNewInvoiceNumber());
         selectedInvoice = newInvoice;
         invoiceBinder.readBean(selectedInvoice);
+        customerCard.removeAll();
+        customerCard.setTitle(new Div("Gelieve een klant te selecteren."));
+        customerCard.setSubtitle(new Div("Om een nieuwe klant aan te maken"));
     }
 
     private void saveSelectedProforma() throws ValidationException {
@@ -554,7 +595,9 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
             if(optionalInvoiceById.isPresent()) {
                 selectedInvoice = optionalInvoiceById.get();
                 invoiceBinder.readBean(selectedInvoice);
+                customerComboBox.setValue(selectedInvoice.getCustomer());
                 selectProductSubView.setSelectedProductList(selectedInvoice.getProductList());
+                selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.ADMIN, selectedInvoice.getInvoiceDate());
             }
             else{
                 Notification show = Notification.show("Deze werkbon kon niet worden geopend!");

@@ -31,6 +31,7 @@ public class ToolsFuelView extends VerticalLayout {
     List<Product> selectedProducts;
     Integer amountFuel = 1;
     TextField tfFuel;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsFuelView(ProductService productService,
@@ -73,14 +74,15 @@ public class ToolsFuelView extends VerticalLayout {
     private void setUpOkButton(Button okButton) {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_TERTIARY);
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            Product productToAdd = productService.findByProductCodeContaining("BRANDSTOF").get().get(0);
+            productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setSelectedAmount(Double.valueOf(amountFuel));
             productToAdd.setInternalName("Brandstof : " + selectedTool.getDiscription());
             selectedProducts.add(productToAdd);
-            Product productToAdd2 = new Product();
-            productToAdd2.setAbbreviation(selectedTool.getAbbreviationIndustry());
-            productToAdd2.setSelectedAmount(Double.valueOf(amountFuel));
+
+            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            productToAdd2.setSelectedAmount(1.0);
+            productToAdd2.setTeamNumber(selectedTeam);
             productToAdd2.setInternalName("Forfait : " + selectedTool.getDiscription());
             selectedProducts.add(productToAdd2);
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
@@ -91,11 +93,12 @@ public class ToolsFuelView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         amountFuel = 1;
         tfFuel.setValue(amountFuel.toString());
         title.setText(selectedTool.getDiscription() + " selecteren?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

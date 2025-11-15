@@ -37,6 +37,17 @@ public class ProductLevel1Service {
         }
     }
 
+    public Optional<ProductLevel1> getProductLevel1ByName(String name) {
+        List<ProductLevel1> level1List = productLevel1Repo.findAll();
+        if (!level1List.isEmpty()) {
+            Collections.sort(level1List, (o1, o2) -> (o1.getName().compareTo(o2.getName())));
+            return Optional.of(level1List.stream().filter(item -> item.getName().toLowerCase().matches(name.toLowerCase())).findFirst().orElse(null));
+        }
+        else{
+            return Optional.empty();
+        }
+    }
+
     public Optional<List<ProductDiscriptionAndId>> getProductDiscriptionAndId() {
         List<ProductLevel1> level1List = productLevel1Repo.findAll();
         if (!level1List.isEmpty()) {

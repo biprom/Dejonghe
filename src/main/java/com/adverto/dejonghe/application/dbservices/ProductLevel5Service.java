@@ -68,4 +68,15 @@ public class ProductLevel5Service {
             return Optional.empty();
         }
     }
+
+    public Optional<ProductLevel5> getProductLevel5ByName(String name) {
+        List<ProductLevel5> level5List = productLevel5Repo.findAll();
+        if (!level5List.isEmpty()) {
+            Collections.sort(level5List, (o1, o2) -> (o1.getName().compareTo(o2.getName())));
+            return Optional.of(level5List.stream().filter(item -> item.getName().toLowerCase().matches(name.toLowerCase())).findFirst().orElse(null));
+        }
+        else{
+            return Optional.empty();
+        }
+    }
 }

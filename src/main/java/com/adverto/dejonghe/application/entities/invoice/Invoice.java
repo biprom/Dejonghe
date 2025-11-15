@@ -27,6 +27,7 @@ public class Invoice {
     Customer customer;
     Address workAddress;
     LocalDate invoiceDate;
+    LocalDate expiryDate;
     InvoiceStatus invoiceStatus;
     String discription;
     Boolean toCheck;

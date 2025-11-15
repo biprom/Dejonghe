@@ -27,4 +27,5 @@ public interface ProductRepo extends MongoRepository<Product, String> {
     List<Product> findByProductLevel3_nameIsAndProductLevel2_nameIsAndProductLevel1_nameIs(String productLevel3, String productLevel2, String productLevel1);
     List<Product> findByProductLevel2_nameIsAndProductLevel1_nameIs(String productLevel2, String productLevel1);
     List<Product> findByProductLevel1_nameIs(String productLevel1);
+    List<Product> findBySet(Boolean set);
 }

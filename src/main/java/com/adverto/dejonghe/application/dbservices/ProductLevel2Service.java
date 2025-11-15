@@ -66,4 +66,15 @@ public class ProductLevel2Service {
             productLevel2Repo.removeById(id);
         }
     }
+
+    public Optional<ProductLevel2> getProductLevel2ByName(String name) {
+        List<ProductLevel2> level2List = productLevel2Repo.findAll();
+        if (!level2List.isEmpty()) {
+            Collections.sort(level2List, (o1, o2) -> (o1.getName().compareTo(o2.getName())));
+            return Optional.of(level2List.stream().filter(item -> item.getName().toLowerCase().matches(name.toLowerCase())).findFirst().orElse(null));
+        }
+        else{
+            return Optional.empty();
+        }
+    }
 }

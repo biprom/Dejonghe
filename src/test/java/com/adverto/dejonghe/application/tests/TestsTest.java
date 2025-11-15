@@ -2,10 +2,12 @@ package com.adverto.dejonghe.application.tests;
 
 import com.adverto.dejonghe.application.Controllers.GoogleRestController;
 import com.adverto.dejonghe.application.dbservices.CustomerService;
+import com.adverto.dejonghe.application.dbservices.ProductService;
 import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Coordinates;
 import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.customers.CustomerImport;
+import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.adverto.dejonghe.application.repos.CustomerImportRepo;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ class Tests{
     CustomerImportRepo customerImportRepo;
     CustomerService customerService;
     GoogleRestController googleRestController;
+    @Autowired
+    private ProductService productService;
 
     @Autowired
     public Tests(CustomerImportRepo customerImportRepo,
@@ -31,6 +35,26 @@ class Tests{
         this.customerService = customerService;
         this.googleRestController = googleRestController;
     }
+
+    @Test
+    void copyCommenArtNumbersPurchasePrice() throws JSONException {
+        List<Product>productList = productService.getAllProducts().get();
+        int i = 0;
+        for(Product product:productList){
+            if((product.getProductCode() != null) && (product.getProductCode().length() > 0)){
+                Optional<List<Product>>commonProductList = productService.findByProductCodeContaining(product.getProductCode());
+                if(commonProductList.isPresent()){
+                    Double maxPurchasePrice = commonProductList.get().stream().filter(item -> item.getPurchasePrice() != null).map(item -> item.getPurchasePrice()).max(Double::compareTo).get();
+                    for(Product commonProduct:commonProductList.get()){
+                        commonProduct.setPurchasePrice(maxPurchasePrice);
+                        System.out.println(i + " " +commonProduct.getProductCode() + " " + commonProduct.getPurchasePrice());
+                    }
+                }
+            }
+            i++;
+        }
+    }
+
 
     //@Test
     void addCustomersImportToCustomers() {

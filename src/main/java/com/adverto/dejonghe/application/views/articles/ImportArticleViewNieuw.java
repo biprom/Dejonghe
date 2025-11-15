@@ -5,17 +5,19 @@ import com.adverto.dejonghe.application.entities.product.enums.E_Product_Level;
 import com.adverto.dejonghe.application.entities.product.product.*;
 import com.adverto.dejonghe.application.repos.ProductRepo;
 import com.adverto.dejonghe.application.views.subViews.SetView;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.Focusable;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridSortOrder;
 import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.grid.editor.Editor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -24,6 +26,7 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.splitlayout.SplitLayout;
 import com.vaadin.flow.component.spreadsheet.Spreadsheet;
 import com.vaadin.flow.component.textfield.TextField;
@@ -31,7 +34,6 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.converter.StringToDoubleConverter;
 import com.vaadin.flow.data.provider.SortDirection;
-import com.vaadin.flow.data.renderer.LitRenderer;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.spring.data.VaadinSpringDataHelpers;
 import org.apache.poi.ss.util.CellReference;
@@ -45,15 +47,17 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY_INLINE;
 
-@PageTitle("Artikelen")
-@Route("")
+@PageTitle("ArtikelenNieuw")
+@Route("ArtikelenNieuw")
 @Menu(order = 0, icon = LineAwesomeIconUrl.COG_SOLID)
-public class ImportArticleView extends Div implements BeforeEnterObserver {
+public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnterObserver {
 
     //@Value( "${linkSpreadsheetBulk}" )
     private FileSystemResource linkToBulkSpreadsheet = new FileSystemResource("/Users/bramvandenberghe/Desktop/dejonghe.xlsx");
@@ -85,13 +89,12 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 
     private Dialog bulkDialog;
     private Dialog configureSetDialog;
-    Span levelSpan;
 
     private final Grid<Product> grid = new Grid<>(Product.class, false);
     private List<Product>productForGrid;
 
-    private TextField tfFilter;
-    private TextField tfId;
+    private TextField tfGeneralFilter;
+    private TextField tfFolderFilter;
     private TextField tfProductCode;
     private TextField tfPositionNumber;
     private TextField tfInternalName;
@@ -120,10 +123,18 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
     private Button bAddProductLevel6;
     private Button bAddProductLevel7;
 
-    private final Button buttonNewProduct = new Button("Nieuw Artikel");
+    Grid.Column codeColumn;
+    Grid.Column posColumn;
+    Grid.Column internalNameColumn;
+    Grid.Column purchaceColumn;
+    Grid.Column sellComumn;
+    Grid.Column marginColumn;
+    Grid.Column commentColumn;
+    Grid.Column unitColumn;
+
+    private final Button buttonNewProduct = new Button("Nieuw");
     private final Button buttonSave = new Button("Bewaar");
-    private final Button addBulk = new Button("Voeg Bulk toe");
-    private final Button buttonConfigureSet = new Button("Maak set aan");
+    private final Button buttonConfigureSet = new Button("Maak set");
 
     private List<String> importBulkLevelList = new ArrayList<>();
 
@@ -132,25 +143,29 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 
     private Grid<PurchasePrice>purchasePriceGrid = new Grid<>();
 
-    DecimalFormat df = new DecimalFormat("#.##");
+    DecimalFormat df = new DecimalFormat("0.00");
 
     private Spreadsheet spreadsheet;
 
     private Binder<Product> productBinder;
+    Editor<Product> editor;
 
     private Product selectedProduct;
+    Button goToFolderButton;
 
-    public ImportArticleView(ProductService productService,
-                             ProductRepo productRepo,
-                             ProductLevel1Service productLevel1Service,
-                             ProductLevel2Service productLevel2Service,
-                             ProductLevel3Service productLevel3Service,
-                             ProductLevel4Service productLevel4Service,
-                             ProductLevel5Service productLevel5Service,
-                             ProductLevel6Service productLevel6Service,
-                             ProductLevel7Service productLevel7Service,
-                             SupplierService supplierService,
-                             SetView setView) {
+    AtomicBoolean updating = new AtomicBoolean(false);
+
+    public ImportArticleViewNieuw(ProductService productService,
+                                  ProductRepo productRepo,
+                                  ProductLevel1Service productLevel1Service,
+                                  ProductLevel2Service productLevel2Service,
+                                  ProductLevel3Service productLevel3Service,
+                                  ProductLevel4Service productLevel4Service,
+                                  ProductLevel5Service productLevel5Service,
+                                  ProductLevel6Service productLevel6Service,
+                                  ProductLevel7Service productLevel7Service,
+                                  SupplierService supplierService,
+                                  SetView setView) {
         this.productService = productService;
         this.productRepo = productRepo;
         this.productLevel1Service = productLevel1Service;
@@ -166,13 +181,12 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         addClassNames("master-detail-view");
 
         // Create UI
-        SplitLayout splitLayout = new SplitLayout();
-        splitLayout.setSplitterPosition(75);
         createReportError();
         setUpSpreadSheet();
-        createGridLayout(splitLayout);
-        createEditorLayout(splitLayout);
-        add(splitLayout);
+        this.setSizeFull();
+        this.setWidth("100");
+        add(createEditorLayout());
+        add(createGridLayout());
         setUpGrid();
         addDataToGrid();
         setUpBinder();
@@ -183,7 +197,6 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         setUpPriceValueChangeListeners();
         setUpFilter();
         createReportChangePurchasePrice();
-        setUpLevelSpan();
 
         buttonNewProduct.addClickListener(e -> {
             Product newProduct = new Product();
@@ -217,21 +230,20 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
             }
             selectedProduct = newProduct;
             populateForm(newProduct);
-            //refreshGrid();
+            productForGrid.add(newProduct);
+            grid.getDataProvider().refreshAll();
+            grid.scrollToItem(newProduct);
+            grid.select(newProduct);
+            editor.editItem(selectedProduct);
         });
 
         buttonSave.addClickListener(e -> {
             try {
-                if (selectedProduct != null) {
-                    productBinder.writeBean(selectedProduct);
+                if (editor.getItem() != null) {
+                    editor.save();
+                    editor.closeEditor();
+                    //productBinder.writeBean(editor.getItem());
                     productService.save(selectedProduct);
-                    if(grid.getSelectedItems() == null) {
-                        productForGrid.add(selectedProduct);
-                    }
-                    grid.setItems(productForGrid);
-
-                    tfId.setValue(LocalDateTime.now().toString());
-                    Notification.show("Data updated");
                 }
                 else{
                     Notification.show("Gelieve eerst een artikel aan te maken of te selecteren aub");
@@ -241,19 +253,13 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                         "Error updating the data. Somebody else has updated the record while you were making changes.");
                 n.setPosition(Notification.Position.MIDDLE);
                 n.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            } catch (ValidationException validationException) {
-                Notification.show("Failed to update the data. Check again that all values are valid");
             }
         });
 
-        addBulk.addClickListener(e -> {
-            bulkDialog.open();
-            selectedProductLevel = E_Product_Level.PRODUCT;
-        });
 
         buttonConfigureSet.addClickListener(e -> {
             configureSetDialog.open();
-            //TODO fix everything!!!
+
             setView.setSelectedProductForSet(selectedProduct);
         });
     }
@@ -265,44 +271,6 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         configureSetDialog.add(setView);
     }
 
-    private void setUpLevelSpan() {
-        levelSpan.addClickListener(event -> {
-
-                ProductLevel1 productLevel1 = cbProductLevel1.getValue();
-                ProductLevel2 productLevel2 = cbProductLevel2.getValue();
-                ProductLevel3 productLevel3 = cbProductLevel3.getValue();
-                ProductLevel4 productLevel4 = cbProductLevel4.getValue();
-                ProductLevel5 productLevel5 = cbProductLevel5.getValue();
-                ProductLevel6 productLevel6 = cbProductLevel6.getValue();
-                ProductLevel7 productLevel7 = cbProductLevel7.getValue();
-
-                clearForm();
-
-                //TODO filter by Comboboxes
-
-                if(productLevel1 != null){
-                    cbProductLevel1.setValue(productLevel1);
-                }
-                if(productLevel2 != null){
-                    cbProductLevel2.setValue(productLevel2);
-                }
-                if(productLevel3 != null){
-                    cbProductLevel3.setValue(productLevel3);
-                }
-                if(productLevel4 != null){
-                    cbProductLevel4.setValue(productLevel4);
-                }
-                if(productLevel5 != null){
-                    cbProductLevel5.setValue(productLevel5);
-                }
-                if(productLevel6 != null){
-                    cbProductLevel6.setValue(productLevel6);
-                }
-                if(productLevel7 != null){
-                    cbProductLevel7.setValue(productLevel7);
-                }
-        });
-    }
 
     private Notification createReportError() {
         deleteCustomerNotification = new Notification();
@@ -347,8 +315,26 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
     }
 
     private void setUpFilter() {
-        tfFilter.addValueChangeListener(e -> {
-            Optional<List<Product>> optCustomer = productService.getProductByInternalNameOrCodeOrComment(tfFilter.getValue(), tfFilter.getValue(), tfFilter.getValue());
+        tfGeneralFilter.setWidth("100%");
+        tfGeneralFilter.addValueChangeListener(e -> {
+            if (updating.get()) return;
+            updating.set(true);
+            cbProductLevel1.clear();
+            cbProductLevel2.clear();
+            cbProductLevel3.clear();
+            cbProductLevel4.clear();
+            cbProductLevel5.clear();
+            cbProductLevel6.clear();
+            cbProductLevel7.clear();
+            cbProductLevel1.setPlaceholder("");
+            cbProductLevel2.setPlaceholder("");
+            cbProductLevel3.setPlaceholder("");
+            cbProductLevel4.setPlaceholder("");
+            cbProductLevel5.setPlaceholder("");
+            cbProductLevel6.setPlaceholder("");
+            cbProductLevel7.setPlaceholder("");
+            tfFolderFilter.setValue("");
+            Optional<List<Product>> optCustomer = productService.getProductByInternalNameOrCodeOrComment(tfGeneralFilter.getValue(), tfGeneralFilter.getValue(), tfGeneralFilter.getValue());
             if(optCustomer.isPresent()) {
                 productForGrid = optCustomer.get();
                 grid.setItems(productForGrid);
@@ -356,6 +342,16 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
             else{
                 Notification.show("Geen klanten gevonden");
             }
+            updating.set(false);
+        });
+
+        tfFolderFilter.setWidth("100%");
+        tfFolderFilter.addValueChangeListener(e -> {
+            if (updating.get()) return;
+            updating.set(true);
+            tfGeneralFilter.setValue("");
+            grid.setItems(productForGrid.stream().filter(item -> item.getInternalName().toLowerCase().contains(e.getValue().toLowerCase())).collect(Collectors.toList()));
+            updating.set(false);
         });
     }
 
@@ -363,21 +359,20 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         tfPurchasePrice.addValueChangeListener(listener -> {
             if(listener.isFromClient()){
                 //check if there are other selected products with this code and change them
-                tryToCalculateSellPrice(selectedProduct);
-                productBinder.readBean(selectedProduct);
+
+                tryToCalculateSellPrice(editor.getItem());
                 changePurchasePriceNotification.open();
             }
 
         });
         tfSellMargin.addValueChangeListener(listener -> {
             if(listener.isFromClient()){
-                tryToCalculateSellPrice(selectedProduct);
-                productBinder.readBean(selectedProduct);
+                tryToCalculateSellPrice(editor.getItem());
+                changePurchasePriceNotification.open();
             }
         });
         tfSellPrice.addValueChangeListener(listener -> {
             if(listener.isFromClient()){
-                productBinder.readBean(selectedProduct);
             }
         });
     }
@@ -908,26 +903,38 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         fillComboBoxLevel1WithItemsToStart();
 
 
+        cbProductLevel1.addClassName("bold-selected");
         cbProductLevel1.addValueChangeListener(event -> {
-            Optional<List<ProductLevel2>>productLevel2List = productLevel2Service.getProductLevel2sFromPreviousLevels(event.getValue());
-            if (!productLevel2List.isEmpty()) {
-                cbProductLevel2.setEnabled(true);
-                level2List = productLevel2List.get();
-                cbProductLevel2.setItems(level2List);
-                cbProductLevel2.setItemLabelGenerator(x -> x.getName());
-                cbProductLevel3.clear();
-                cbProductLevel3.setEnabled(false);
-                cbProductLevel4.clear();
-                cbProductLevel4.setEnabled(false);
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
 
-                //filter Products
-                if(selectedProduct == null){
+            if (updating.get()) return;
+            updating.set(true);
+            try{
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel2>>productLevel2List = productLevel2Service.getProductLevel2sFromPreviousLevels(event.getValue());
+                if (!productLevel2List.isEmpty()) {
+                    cbProductLevel2.setEnabled(true);
+                    level2List = productLevel2List.get();
+                    cbProductLevel2.setPlaceholder("");
+                    cbProductLevel2.setItems(level2List);
+                    cbProductLevel2.setItemLabelGenerator(x -> x.getName());
+                    cbProductLevel3.setPlaceholder("");
+                    cbProductLevel3.clear();
+                    cbProductLevel3.setEnabled(false);
+                    cbProductLevel4.setPlaceholder("");
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName());
                     if(allProductsByCategory.isPresent()){
                         productForGrid = allProductsByCategory.get();
@@ -938,300 +945,368 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                         productForGrid = products;
                         grid.setItems(productForGrid);
                     }
-                }
 
+
+                }
+                else{
+                    cbProductLevel2.setPlaceholder("");
+                    cbProductLevel2.clear();
+                    cbProductLevel2.setEnabled(false);
+                    cbProductLevel3.setPlaceholder("");
+                    cbProductLevel3.clear();
+                    cbProductLevel3.setEnabled(false);
+                    cbProductLevel4.setPlaceholder("");
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName());
+                    if(allProductsByCategory.isPresent()){
+                        productForGrid = allProductsByCategory.get();
+                        grid.setItems(productForGrid);
+                    }
+                    else{
+                        List<Product>products = new ArrayList<>();
+                        productForGrid = products;
+                        grid.setItems(productForGrid);
+                    }
+
+                }
             }
-            else{
-                cbProductLevel2.clear();
-                cbProductLevel2.setEnabled(false);
-                cbProductLevel3.clear();
-                cbProductLevel3.setEnabled(false);
-                cbProductLevel4.clear();
-                cbProductLevel4.setEnabled(false);
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+             finally {
+                updating.set(false);
             }
 
         });
 
         cbProductLevel2.addValueChangeListener(event -> {
-            Optional<List<ProductLevel3>>productLevel3List = productLevel3Service.getProductLevel3sFromPreviousLevels(cbProductLevel2.getValue(),cbProductLevel1.getValue());
-            if (!productLevel3List.isEmpty()) {
-                cbProductLevel3.setEnabled(true);
-                level3List = productLevel3List.get();
-                cbProductLevel3.setItems(level3List);
-                cbProductLevel3.setItemLabelGenerator(x -> x.getName());
-                cbProductLevel4.clear();
-                cbProductLevel4.setEnabled(false);
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
 
-                //filter Products
-                if(selectedProduct == null){
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel3>> productLevel3List = productLevel3Service.getProductLevel3sFromPreviousLevels(cbProductLevel2.getValue(), cbProductLevel1.getValue());
+                if (!productLevel3List.isEmpty()) {
+                    cbProductLevel3.setEnabled(true);
+                    level3List = productLevel3List.get();
+                    cbProductLevel3.setItems(level3List);
+                    cbProductLevel3.setItemLabelGenerator(x -> x.getName());
+                    cbProductLevel4.setPlaceholder("");
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
                         productForGrid = allProductsByCategory.get();
                         grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
+                    } else {
+                        List<Product> products = new ArrayList<>();
                         productForGrid = products;
                         grid.setItems(productForGrid);
                     }
+
+                } else {
+                    cbProductLevel3.setPlaceholder("");
+                    cbProductLevel3.clear();
+                    cbProductLevel3.setEnabled(false);
+                    cbProductLevel4.setPlaceholder("");
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
+                        productForGrid = allProductsByCategory.get();
+                        grid.setItems(productForGrid);
+                    } else {
+                        List<Product> products = new ArrayList<>();
+                        productForGrid = products;
+                        grid.setItems(productForGrid);
+                    }
+
                 }
             }
-            else{
-                cbProductLevel3.clear();
-                cbProductLevel3.setEnabled(false);
-                cbProductLevel4.clear();
-                cbProductLevel4.setEnabled(false);
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+            finally {
+                updating.set(false);
             }
         });
 
         cbProductLevel3.addValueChangeListener(event -> {
-            Optional<List<ProductLevel4>>productLevel4List = productLevel4Service.getProductLevel4ByPreviousLevelNames(cbProductLevel3.getValue(),cbProductLevel2.getValue(),cbProductLevel1.getValue());
-            if (!productLevel4List.isEmpty()) {
-                cbProductLevel4.setEnabled(true);
-                level4List = productLevel4List.get();
-                cbProductLevel4.setItems(level4List);
-                cbProductLevel4.setItemLabelGenerator(x -> x.getName());
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
 
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel4>> productLevel4List = productLevel4Service.getProductLevel4ByPreviousLevelNames(cbProductLevel3.getValue(), cbProductLevel2.getValue(), cbProductLevel1.getValue());
+                if (!productLevel4List.isEmpty()) {
+                    cbProductLevel4.setEnabled(true);
+                    level4List = productLevel4List.get();
+                    cbProductLevel4.setItems(level4List);
+                    cbProductLevel4.setItemLabelGenerator(x -> x.getName());
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
                         productForGrid = allProductsByCategory.get();
                         grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
+                    } else {
+                        List<Product> products = new ArrayList<>();
                         productForGrid = products;
                         grid.setItems(productForGrid);
                     }
-                }
 
+
+                } else {
+                    cbProductLevel4.setPlaceholder("");
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
+                        productForGrid = allProductsByCategory.get();
+                        grid.setItems(productForGrid);
+                    } else {
+                        List<Product> products = new ArrayList<>();
+                        productForGrid = products;
+                        grid.setItems(productForGrid);
+                    }
+
+                }
             }
-            else{
-                cbProductLevel4.clear();
-                cbProductLevel4.setEnabled(false);
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+            finally {
+                updating.set(false);
             }
         });
 
         cbProductLevel4.addValueChangeListener(event -> {
-            Optional<List<ProductLevel5>>productLevel5List = productLevel5Service.getProductLevel5ByPreviousLevelNames(cbProductLevel4.getValue(),cbProductLevel3.getValue(),cbProductLevel2.getValue(),cbProductLevel1.getValue());
-            if (!productLevel5List.isEmpty()) {
-                cbProductLevel5.setEnabled(true);
-                level5List = productLevel5List.get();
-                cbProductLevel5.setItems(level5List);
-                cbProductLevel5.setItemLabelGenerator(x -> x.getName());
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
 
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel5>> productLevel5List = productLevel5Service.getProductLevel5ByPreviousLevelNames(cbProductLevel4.getValue(), cbProductLevel3.getValue(), cbProductLevel2.getValue(), cbProductLevel1.getValue());
+                if (!productLevel5List.isEmpty()) {
+                    cbProductLevel5.setEnabled(true);
+                    level5List = productLevel5List.get();
+                    cbProductLevel5.setItems(level5List);
+                    cbProductLevel5.setItemLabelGenerator(x -> x.getName());
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
                         productForGrid = allProductsByCategory.get();
                         grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
+                    } else {
+                        List<Product> products = new ArrayList<>();
                         productForGrid = products;
                         grid.setItems(productForGrid);
+                    }
+
+                } else {
+                    cbProductLevel5.setPlaceholder("");
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+                    if (selectedProduct == null) {
+                        //filter Products
+                        Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                        if (allProductsByCategory.isPresent()) {
+                            productForGrid = allProductsByCategory.get();
+                            grid.setItems(productForGrid);
+                        } else {
+                            List<Product> products = new ArrayList<>();
+                            productForGrid = products;
+                            grid.setItems(productForGrid);
+                        }
                     }
                 }
             }
-            else{
-                cbProductLevel5.clear();
-                cbProductLevel5.setEnabled(false);
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+            finally {
+                updating.set(false);
             }
         });
 
         cbProductLevel5.addValueChangeListener(event -> {
-            Optional<List<ProductLevel6>>productLevel6List = productLevel6Service.getProductLevel6ByPreviousLevelNames(cbProductLevel5.getValue(),cbProductLevel4.getValue(),cbProductLevel3.getValue(),cbProductLevel2.getValue(),cbProductLevel1.getValue());
-            if (!productLevel6List.isEmpty()) {
-                cbProductLevel6.setEnabled(true);
-                level6List = productLevel6List.get();
-                cbProductLevel6.setItems(level6List);
-                cbProductLevel6.setItemLabelGenerator(x -> x.getName());
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
 
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel4.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel6>> productLevel6List = productLevel6Service.getProductLevel6ByPreviousLevelNames(cbProductLevel5.getValue(), cbProductLevel4.getValue(), cbProductLevel3.getValue(), cbProductLevel2.getValue(), cbProductLevel1.getValue());
+                if (!productLevel6List.isEmpty()) {
+                    cbProductLevel6.setEnabled(true);
+                    level6List = productLevel6List.get();
+                    cbProductLevel6.setItems(level6List);
+                    cbProductLevel6.setItemLabelGenerator(x -> x.getName());
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
                         productForGrid = allProductsByCategory.get();
                         grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
+                    } else {
+                        List<Product> products = new ArrayList<>();
                         productForGrid = products;
                         grid.setItems(productForGrid);
                     }
-                }
 
+
+                } else {
+                    cbProductLevel6.setPlaceholder("");
+                    cbProductLevel6.clear();
+                    cbProductLevel6.setEnabled(false);
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+                    if (selectedProduct == null) {
+                        //filter Products
+                        Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                        if (allProductsByCategory.isPresent()) {
+                            productForGrid = allProductsByCategory.get();
+                            grid.setItems(productForGrid);
+                        } else {
+                            List<Product> products = new ArrayList<>();
+                            productForGrid = products;
+                            grid.setItems(productForGrid);
+                        }
+                    }
+                }
             }
-            else{
-                cbProductLevel6.clear();
-                cbProductLevel6.setEnabled(false);
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel4.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+            finally {
+                updating.set(false);
             }
         });
 
         cbProductLevel6.addValueChangeListener(event -> {
-            Optional<List<ProductLevel7>>productLevel7List = productLevel7Service.getProductLevel7ByPreviousLevelNames(cbProductLevel6.getValue(),cbProductLevel5.getValue(),cbProductLevel4.getValue(),cbProductLevel3.getValue(),cbProductLevel2.getValue(),cbProductLevel1.getValue());
-            if (!productLevel7List.isEmpty()) {
-                cbProductLevel7.setEnabled(true);
-                level7List = productLevel7List.get();
-                cbProductLevel7.setItems(level7List);
-                cbProductLevel7.setItemLabelGenerator(x -> x.getName());
 
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel5.getValue().getName(),cbProductLevel4.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<ProductLevel7>> productLevel7List = productLevel7Service.getProductLevel7ByPreviousLevelNames(cbProductLevel6.getValue(), cbProductLevel5.getValue(), cbProductLevel4.getValue(), cbProductLevel3.getValue(), cbProductLevel2.getValue(), cbProductLevel1.getValue());
+                if (!productLevel7List.isEmpty()) {
+                    cbProductLevel7.setEnabled(true);
+                    level7List = productLevel7List.get();
+                    cbProductLevel7.setItems(level7List);
+                    cbProductLevel7.setItemLabelGenerator(x -> x.getName());
+
+
+                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                    if (allProductsByCategory.isPresent()) {
                         productForGrid = allProductsByCategory.get();
                         grid.setItems(productForGrid);
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
+                    } else {
+                        List<Product> products = new ArrayList<>();
                         productForGrid = products;
                         grid.setItems(productForGrid);
+                    }
+
+
+                } else {
+                    cbProductLevel7.setPlaceholder("");
+                    cbProductLevel7.clear();
+                    cbProductLevel7.setEnabled(false);
+                    if (selectedProduct == null) {
+                        //filter Products
+                        Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                        if (allProductsByCategory.isPresent()) {
+                            productForGrid = allProductsByCategory.get();
+                            grid.setItems(allProductsByCategory.get());
+                        } else {
+                            List<Product> products = new ArrayList<>();
+                            productForGrid = products;
+                            grid.setItems(productForGrid);
+                        }
                     }
                 }
 
             }
-            else{
-                cbProductLevel7.clear();
-                cbProductLevel7.setEnabled(false);
-                if(selectedProduct == null){
-                    //filter Products
-                    Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel5.getValue().getName(),cbProductLevel4.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                    if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        grid.setItems(allProductsByCategory.get());
-                    }
-                    else{
-                        List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        grid.setItems(productForGrid);
-                    }
-                }
+            finally {
+                updating.set(false);
             }
         });
 
         cbProductLevel7.addValueChangeListener(event -> {
-            if(selectedProduct == null){
-                //filter Products
-                Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(),cbProductLevel6.getValue().getName(),cbProductLevel5.getValue().getName(),cbProductLevel4.getValue().getName(),cbProductLevel3.getValue().getName(),cbProductLevel2.getValue().getName(),cbProductLevel1.getValue().getName());
-                if(allProductsByCategory.isPresent()){
+            if (updating.get()) return;
+            updating.set(true);
+            try {
+                tfGeneralFilter.setValue("");
+                tfFolderFilter.setValue("");
+                Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel6.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
+                if (allProductsByCategory.isPresent()) {
                     productForGrid = allProductsByCategory.get();
                     grid.setItems(productForGrid);
-                }
-                else{
-                    List<Product>products = new ArrayList<>();
+                } else {
+                    List<Product> products = new ArrayList<>();
                     productForGrid = products;
                     grid.setItems(productForGrid);
                 }
+            }
+            finally {
+                updating.set(false);
             }
         });
     }
@@ -1253,14 +1328,18 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
     private void setUpBinder() {
         // Configure Form
         productBinder = new Binder<>(Product.class);
-        productBinder.forField(tfId)
-                .bind(x -> x.getId().toString(), (x,y)-> x.setId(y));
+        editor = grid.getEditor();
+        editor.setBuffered(true);
+        editor.setBinder(productBinder);
         productBinder.forField(tfProductCode)
                 .bind(Product::getProductCode, Product::setProductCode);
+        codeColumn.setEditorComponent(tfProductCode);
         productBinder.forField(tfPositionNumber)
                         .bind(Product::getPositionNumber, Product::setPositionNumber);
+        posColumn.setEditorComponent(tfPositionNumber);
         productBinder.forField(tfInternalName)
                 .bind(Product::getInternalName, Product::setInternalName);
+        internalNameColumn.setEditorComponent(tfInternalName);
         productBinder.forField(tfPurchasePrice)
 //                .withNullRepresentation("0.0")
 //                        .withValidator(
@@ -1275,9 +1354,10 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 //                        ,"De ingave moet een decimaal nummer zijn (getal met een punt als komma)")
                 .withConverter(
                         new StringToDoubleConverter("De ingave moet een decimaal nummer zijn (getal met een punt als komma)"))
-                .bind(Product::getPurchasePrice, Product::setPurchasePrice);;
+                .bind(Product::getPurchasePrice, Product::setPurchasePrice);
+        purchaceColumn.setEditorComponent(tfPurchasePrice);
         productBinder.forField(tfSellMargin)
-//                .withNullRepresentation("0.0")
+                .withNullRepresentation("0.00")
 //                .withValidator(
 //                        value -> {
 //                            try {
@@ -1290,7 +1370,8 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 //                        ,"De ingave moet een decimaal nummer zijn (getal met een punt als komma)")
                 .withConverter(
                         new StringToDoubleConverter("De ingave moet een decimaal nummer zijn (getal met een punt als komma)"))
-                .bind(Product::getSellMargin, Product::setSellMargin);;
+                .bind(Product::getSellMargin, Product::setSellMargin);
+        marginColumn.setEditorComponent(tfSellMargin);
 
         productBinder.forField(tfSellPrice)
 //                .withNullRepresentation("0.0")
@@ -1306,48 +1387,51 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 //                        ,"De ingave moet een decimaal nummer zijn (getal met een punt als komma)")
                 .withConverter(
                         new StringToDoubleConverter("De ingave moet een decimaal nummer zijn (getal met een punt als komma)"))
-                .bind(Product::getSellPrice, Product::setSellPrice);;
+                .bind(Product::getSellPrice, Product::setSellPrice);
+        sellComumn.setEditorComponent(tfSellPrice);
 
         productBinder.forField(tfComment)
                 .bind(Product::getComment, Product::setComment);
+        commentColumn.setEditorComponent(tfComment);
         productBinder.forField(tfUnit)
                 .bind(Product::getUnit, Product::setUnit);
-        productBinder.forField(cbProductLevel1)
-                        .bind(Product::getProductLevel1, Product::setProductLevel1);
-        productBinder.forField(cbProductLevel2)
-                .bind(Product::getProductLevel2, Product::setProductLevel2);
-        productBinder.forField(cbProductLevel3)
-                .bind(Product::getProductLevel3, Product::setProductLevel3);
-        productBinder.forField(cbProductLevel4)
-                .bind(Product::getProductLevel4, Product::setProductLevel4);
-        productBinder.forField(cbProductLevel5)
-                .bind(Product::getProductLevel5, Product::setProductLevel5);
-        productBinder.forField(cbProductLevel6)
-                .bind(Product::getProductLevel6, Product::setProductLevel6);
-        productBinder.forField(cbProductLevel7)
-                .bind(Product::getProductLevel7, Product::setProductLevel7);
-        productBinder.addValueChangeListener(event -> {
-            if ((selectedProduct != null) && (event.getValue() != null)) {
-                try {
-                    productBinder.writeBean(selectedProduct);
-                } catch (ValidationException e) {
-                    throw new RuntimeException(e);
-                }
-                grid.getDataProvider().refreshItem(selectedProduct);
-            }
-            else{
-                if(!event.isFromClient()){
-                    clearForm();
-                    cbProductLevel1.setValue(cbProductLevel1.getEmptyValue());
-                    cbProductLevel2.setValue(cbProductLevel2.getEmptyValue());
-                    cbProductLevel3.setValue(cbProductLevel3.getEmptyValue());
-                    cbProductLevel4.setValue(cbProductLevel4.getEmptyValue());
-                    cbProductLevel5.setValue(cbProductLevel5.getEmptyValue());
-                    cbProductLevel6.setValue(cbProductLevel6.getEmptyValue());
-                    cbProductLevel7.setValue(cbProductLevel7.getEmptyValue());
-                }
-            }
-        });
+        unitColumn.setEditorComponent(tfUnit);
+//        productBinder.forField(cbProductLevel1)
+//                        .bind(Product::getProductLevel1, Product::setProductLevel1);
+//        productBinder.forField(cbProductLevel2)
+//                .bind(Product::getProductLevel2, Product::setProductLevel2);
+//        productBinder.forField(cbProductLevel3)
+//                .bind(Product::getProductLevel3, Product::setProductLevel3);
+//        productBinder.forField(cbProductLevel4)
+//                .bind(Product::getProductLevel4, Product::setProductLevel4);
+//        productBinder.forField(cbProductLevel5)
+//                .bind(Product::getProductLevel5, Product::setProductLevel5);
+//        productBinder.forField(cbProductLevel6)
+//                .bind(Product::getProductLevel6, Product::setProductLevel6);
+//        productBinder.forField(cbProductLevel7)
+//                .bind(Product::getProductLevel7, Product::setProductLevel7);
+//        productBinder.addValueChangeListener(event -> {
+//            if ((selectedProduct != null) && (event.getValue() != null)) {
+//                try {
+//                    productBinder.writeBean(selectedProduct);
+//                } catch (ValidationException e) {
+//                    throw new RuntimeException(e);
+//                }
+//                grid.getDataProvider().refreshItem(selectedProduct);
+//            }
+//            else{
+//                if(!event.isFromClient()){
+//                    clearForm();
+//                    cbProductLevel1.setValue(cbProductLevel1.getEmptyValue());
+//                    cbProductLevel2.setValue(cbProductLevel2.getEmptyValue());
+//                    cbProductLevel3.setValue(cbProductLevel3.getEmptyValue());
+//                    cbProductLevel4.setValue(cbProductLevel4.getEmptyValue());
+//                    cbProductLevel5.setValue(cbProductLevel5.getEmptyValue());
+//                    cbProductLevel6.setValue(cbProductLevel6.getEmptyValue());
+//                    cbProductLevel7.setValue(cbProductLevel7.getEmptyValue());
+//                }
+//            }
+//        });
     }
 
     private void addDataToGrid() {
@@ -1385,18 +1469,7 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                 deleteCustomerNotification.open();
             });
             return closeButton;
-        });
-
-        grid.addComponentColumn(item -> {
-            if((item.getSet() != null) && (item.getSet())){
-                Span newSpan = new Span("SET");
-                newSpan.getStyle().set("color", "red");
-                newSpan.getStyle().set("font-weight", "bold");
-                return newSpan;
-            }
-            return new Span("");
-
-        });
+        }).setWidth("14ch").setFlexGrow(0);
 
         Grid.Column<Product> sortColumnPosNr = grid.addColumn(item -> {
             if((item.getPositionNumber() != null) && (!item.getPositionNumber().isEmpty())){
@@ -1412,8 +1485,8 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
             }
         });
         sortColumnPosNr.setVisible(false);
-        grid.addColumn("productCode").setHeader("Code").setResizable(true).setWidth("20%");
-        grid.addColumn("positionNumber").setComparator((o1, o2) -> {
+        codeColumn = grid.addColumn("productCode").setHeader("Code").setResizable(true).setWidth("19ch").setFlexGrow(0);
+        posColumn = grid.addColumn("positionNumber").setComparator((o1, o2) -> {
             if((o1.getPositionNumber() != null) && (o2.getPositionNumber() != null)) {
                 return compareOnderdeel(o1.getPositionNumber(), o2.getPositionNumber());
             }
@@ -1421,49 +1494,45 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                 return -1;
             }
 
-        }).setHeader("Pos").setResizable(true).setFlexGrow(1);
-        Grid.Column<Product> productColumn = grid.addColumn("internalName").setSortable(true) .setComparator((o1, o2) -> compareOnderdeel(o1.getInternalName(), o2.getInternalName())).setWidth("25%").setHeader("Naam").setResizable(true);
-        grid.sort(List.of(new GridSortOrder<>(productColumn, SortDirection.ASCENDING)));
-        grid.addColumn(item -> {
+        }).setHeader("Pos").setResizable(true).setWidth("14ch").setFlexGrow(0);
+        internalNameColumn = grid.addColumn("internalName").setSortable(true) .setComparator((o1, o2) -> compareOnderdeel(o1.getInternalName(), o2.getInternalName())).setHeader("Naam").setResizable(true).setFlexGrow(2);
+        grid.sort(List.of(new GridSortOrder<>(internalNameColumn, SortDirection.ASCENDING)));
+        purchaceColumn = grid.addColumn(item -> {
             if(item.getPurchasePrice() != null){
                 return df.format(item.getPurchasePrice());
             }
             else{
                 return "N/A";
             }
+        }).setHeader("Aankoop").setResizable(true).setWidth("14ch").setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
-        }).setHeader("Aankoop").setTextAlign(ColumnTextAlign.END).setResizable(true).setFlexGrow(1);
-        grid.addColumn(item -> {
-            if(item.getSellPrice() != null){
-                return df.format(item.getSellPrice());
-            }
-            else{
-                return "N/A";
-            }
-        }).setHeader("Verkoop").setTextAlign(ColumnTextAlign.END).setResizable(true).setFlexGrow(1);;
-        grid.addColumn(item -> {
+        marginColumn = grid.addColumn(item -> {
             if(item.getSellMargin() != null){
                 return df.format(item.getSellMargin());
             }
             else{
                 return "N/A";
             }
-        }).setHeader("Marge").setTextAlign(ColumnTextAlign.END).setResizable(true).setFlexGrow(1);
-        grid.addColumn("comment").setHeader("Commentaar").setResizable(true).setFlexGrow(2);
-        LitRenderer<Product> importantRenderer = LitRenderer.<Product>of(
-                        "<vaadin-icon icon='vaadin:${item.icon}' style='width: var(--lumo-icon-size-s); height: var(--lumo-icon-size-s); color: ${item.color};'></vaadin-icon>")
-                .withProperty("icon", product -> product.getLinked() ? "check" : "minus").withProperty("color",
-                        product -> product.getLinked()
-                                ? "var(--lumo-primary-text-color)"
-                                : "var(--lumo-disabled-text-color)");
-        grid.addColumn(item -> {
+        }).setHeader("Marge").setResizable(true).setWidth("14ch").setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
+
+        sellComumn = grid.addColumn(item -> {
+            if(item.getSellPrice() != null){
+                return df.format(item.getSellPrice());
+            }
+            else{
+                return "N/A";
+            }
+        }).setHeader("Verkoop").setResizable(true).setWidth("14ch").setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
+
+        commentColumn = grid.addColumn("comment").setHeader("Commentaar").setWidth("33ch").setFlexGrow(1).setResizable(true);
+        unitColumn = grid.addColumn(item -> {
             if(item.getUnit() != null){
                 return item.getUnit();
             }
             else{
                 return "";
             }
-        }).setHeader("Eenh.").setResizable(true).setFlexGrow(1);
+        }).setHeader("E/H.").setResizable(true).setWidth("8ch").setFlexGrow(0).setFrozenToEnd(true);
         grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 
         grid.setPartNameGenerator(product -> {
@@ -1476,17 +1545,100 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
             }
         });
 
-        // when a row is selected or deselected, populate form
+        //when a row is selected or deselected, populate form
         grid.asSingleSelect().addValueChangeListener(event -> {
-            if (event.getValue() != null) {
-                //first populate null to clear Level filters then select item
-                populateForm(null);
+           editor.cancel();
+           editor.closeEditor();
 
-                grid.select(event.getValue());
-                selectedProduct = event.getValue();
-                levelSpan.setText(getStringLevel(selectedProduct));
-                populateForm(selectedProduct);
-                if((event.getValue().getPurchasePriseList() != null) && (event.getValue().getPurchasePriseList().size() > 0)){
+           selectedProduct = event.getValue();
+           var value = event.getValue();
+
+            if (value != null) {
+                updating.set(true);
+                if (value.getProductLevel1() != null){
+                    if((cbProductLevel1.getValue() == null)){
+                        cbProductLevel1.clear();
+                        cbProductLevel1.setEnabled(true);
+                        cbProductLevel1.setPlaceholder(value.getProductLevel1().getName());
+                    }
+                    else{
+                        cbProductLevel1.setPlaceholder(value.getProductLevel1().getName());
+                    }
+                }
+                else{
+                    cbProductLevel1.clear();
+                    cbProductLevel1.setEnabled(false);
+                    cbProductLevel1.setPlaceholder("");
+                }
+
+                if (value.getProductLevel2() != null){
+                    if(cbProductLevel2.getValue() == null){
+                        cbProductLevel2.clear();
+                        cbProductLevel2.setEnabled(true);
+                        cbProductLevel2.setPlaceholder(value.getProductLevel2().getName());
+                    }
+                    else{
+                        cbProductLevel2.setPlaceholder(value.getProductLevel2().getName());
+                    }
+                }
+                else{
+                    cbProductLevel2.clear();
+                    cbProductLevel2.setEnabled(false);
+                    cbProductLevel2.setPlaceholder("");
+                }
+
+                if (value.getProductLevel3() != null){
+                    if(cbProductLevel3.getValue() == null){
+                        cbProductLevel3.clear();
+                        cbProductLevel3.setEnabled(true);
+                        cbProductLevel3.setPlaceholder(value.getProductLevel3().getName());
+                    }
+                    else{
+                        cbProductLevel3.setPlaceholder(value.getProductLevel3().getName());
+                    }
+                }
+                else{
+                    cbProductLevel3.clear();
+                    cbProductLevel3.setEnabled(false);
+                    cbProductLevel3.setPlaceholder("");
+                }
+
+                if (value.getProductLevel4() != null){
+                    if((cbProductLevel4.getValue() == null)){
+                        cbProductLevel4.clear();
+                        cbProductLevel4.setEnabled(true);
+                        cbProductLevel4.setPlaceholder(value.getProductLevel4().getName());
+                    }
+                    else{
+                        cbProductLevel4.setPlaceholder(value.getProductLevel4().getName());
+                    }
+                }
+                else{
+                    cbProductLevel4.clear();
+                    cbProductLevel4.setEnabled(false);
+                    cbProductLevel4.setPlaceholder("");
+                }
+
+                if (value.getProductLevel5() != null){
+                    if((cbProductLevel5.getValue() == null)){
+                        cbProductLevel5.clear();
+                        cbProductLevel5.setEnabled(true);
+                        cbProductLevel5.setPlaceholder(value.getProductLevel5().getName());
+                    }
+                    else{
+                        cbProductLevel5.setPlaceholder(value.getProductLevel5().getName());
+                    }
+                }
+                else{
+                    cbProductLevel5.clear();
+                    cbProductLevel5.setEnabled(false);
+                    cbProductLevel5.setPlaceholder("");
+                }
+                updating.set(false);
+            }
+
+            if(event.getValue() != null){
+                if((event.getValue() != null) && (event.getValue().getPurchasePriseList() != null) && (event.getValue().getPurchasePriseList().size() > 0)){
                     purchasePriceGrid.setItems(event.getValue().getPurchasePriseList());
                 }
                 else{
@@ -1495,9 +1647,15 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                     event.getValue().setPurchasePriseList(newPurchasePriceList);
                 }
             }
-             else {
-                levelSpan.setText("Geen artikel geslecteerd");
-                clearForm();
+        });
+
+        grid.addItemDoubleClickListener(event -> {
+            selectedProduct = event.getItem();
+            editor.cancel();
+            editor.editItem(event.getItem());
+            Component editorComponent = event.getColumn().getEditorComponent();
+            if (editorComponent instanceof Focusable) {
+                ((Focusable) editorComponent).focus();
             }
         });
     }
@@ -1588,19 +1746,24 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
 
     }
 
-    private void createEditorLayout(SplitLayout splitLayout) {
+    private Div createEditorLayout() {
         Div editorLayoutDiv = new Div();
+        editorLayoutDiv.setWidth("100%");
         editorLayoutDiv.setClassName("editor-layout");
 
         Div editorDiv = new Div();
+        editorDiv.setWidth("100%");
         editorDiv.setClassName("editor");
         editorLayoutDiv.add(editorDiv);
 
-        FormLayout formLayout = new FormLayout();
-        tfFilter = new TextField("Filter");
-        tfId = new TextField("Id");
-        tfId.setEnabled(false);
-        tfId.setVisible(true);
+        HorizontalLayout hLayout1 = new HorizontalLayout();
+        hLayout1.setWidth("100%");
+        HorizontalLayout hLayout2 = new HorizontalLayout();
+        hLayout2.setWidth("100%");
+        tfGeneralFilter = new TextField("");
+        tfGeneralFilter.setPlaceholder("General filter");
+        tfFolderFilter = new TextField("");
+        tfFolderFilter.setPlaceholder("Folder filter");
         tfProductCode = new TextField("Artikelcode");
         tfPositionNumber = new TextField("Positienummer");
         tfInternalName = new TextField("Interne omschrijving");
@@ -1609,47 +1772,71 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         tfSellPrice = new TextField("Verkoopprijs");
         tfComment = new TextField("Commentaar");
         tfUnit = new TextField("Eenheid");
-        levelSpan = new Span("Productniveau");
-        levelSpan.getElement().getStyle().set("font-size", "18px");
-        levelSpan.getElement().getStyle().set("background-color", "yellow");
-        cbProductLevel1 = new ComboBox("Artikelniveau1");
-        cbProductLevel2 = new ComboBox("Artikelniveau2");
-        cbProductLevel3 = new ComboBox("Artikelniveau3");
-        cbProductLevel4 = new ComboBox("Artikelniveau4");
-        cbProductLevel5 = new ComboBox("Artikelniveau5");
-        cbProductLevel6 = new ComboBox("Artikelniveau6");
-        cbProductLevel7 = new ComboBox("Artikelniveau7");
-        formLayout.add(
-                tfFilter,
-                tfId,
-                levelSpan,
+        cbProductLevel1 = new ComboBox("");
+        cbProductLevel1.setWidth("100%");
+        cbProductLevel2 = new ComboBox("");
+        cbProductLevel2.setWidth("100%");
+        cbProductLevel3 = new ComboBox("");
+        cbProductLevel3.setWidth("100%");
+        cbProductLevel4 = new ComboBox("");
+        cbProductLevel4.setWidth("100%");
+        cbProductLevel5 = new ComboBox("");
+        cbProductLevel5.setWidth("100%");
+        cbProductLevel6 = new ComboBox("");
+        cbProductLevel6.setWidth("100%");
+        cbProductLevel7 = new ComboBox("");
+        cbProductLevel7.setWidth("100%");
+        hLayout1.add(getJumpToFolderIcon(),
                 setUpHorizontalLayoutFor(cbProductLevel1,bAddProductLevel1,E_Product_Level.PRODUCTLEVEL1),
                 setUpHorizontalLayoutFor(cbProductLevel2,bAddProductLevel2,E_Product_Level.PRODUCTLEVEL2),
                         setUpHorizontalLayoutFor(cbProductLevel3,bAddProductLevel3,E_Product_Level.PRODUCTLEVEL3),
                                 setUpHorizontalLayoutFor(cbProductLevel4,bAddProductLevel4,E_Product_Level.PRODUCTLEVEL4),
-                                        setUpHorizontalLayoutFor(cbProductLevel5,bAddProductLevel5,E_Product_Level.PRODUCTLEVEL5),
+                                        setUpHorizontalLayoutFor(cbProductLevel5,bAddProductLevel5,E_Product_Level.PRODUCTLEVEL5)
                 //setUpHorizontalLayoutFor(cbProductLevel6,bAddProductLevel6,E_Product_Level.PRODUCTLEVEL6),
                     //setUpHorizontalLayoutFor(cbProductLevel7,bAddProductLevel7,E_Product_Level.PRODUCTLEVEL7),
-                tfProductCode,
-                tfInternalName,
-                tfPurchasePrice,
-                tfSellMargin,
-                tfSellPrice,
-                tfPositionNumber,
-                tfComment,
-                tfUnit);
+                );
+        hLayout2.add(tfGeneralFilter,tfFolderFilter, createButtonLayout());
 
-        editorDiv.add(formLayout);
-        createButtonLayout(editorLayoutDiv);
+        editorDiv.add(hLayout1);
+        editorDiv.add(hLayout2);
 
-        splitLayout.addToSecondary(editorLayoutDiv);
+        return editorLayoutDiv;
+    }
+
+    private Component getJumpToFolderIcon() {
+        goToFolderButton = new Button(VaadinIcon.ARROW_CIRCLE_UP.create());
+        goToFolderButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        goToFolderButton.addClickListener(event -> {
+
+            String placeholder1 = cbProductLevel1.getPlaceholder();
+            String placeholder2 = cbProductLevel2.getPlaceholder();
+            String placeholder3 = cbProductLevel3.getPlaceholder();
+            String placeholder4 = cbProductLevel4.getPlaceholder();
+            String placeholder5 = cbProductLevel5.getPlaceholder();
+
+            updating.set(true);
+            cbProductLevel1.setItems(productLevel1Service.getAllProductLevel1().get());
+            updating.set(false);
+            if(placeholder1.length() > 0)
+                cbProductLevel1.setValue(productLevel1Service.getProductLevel1ByName(placeholder1).get());
+            if(placeholder2.length() > 0)
+                cbProductLevel2.setValue(productLevel2Service.getProductLevel2ByName(placeholder2).get());
+            if(placeholder3.length() > 0)
+                cbProductLevel3.setValue(productLevel3Service.getProductLevel3ByName(placeholder3).get());
+            if(placeholder4.length() > 0)
+                cbProductLevel4.setValue(productLevel4Service.getProductLevel4ByName(placeholder4).get());
+            if(placeholder5.length() > 0)
+                cbProductLevel5.setValue(productLevel5Service.getProductLevel5ByName(placeholder5).get());
+            Notification.show("Ga naar map");
+        });
+        return goToFolderButton;
     }
 
     private HorizontalLayout setUpHorizontalLayoutFor(ComboBox comboBox, Button addButton, E_Product_Level productLevel) {
         HorizontalLayout horizontalLayout = new HorizontalLayout();
-        horizontalLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         horizontalLayout.setWidth("100%");
-        comboBox.setWidth("100%");
+        horizontalLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        horizontalLayout.setAlignItems(Alignment.BASELINE);
         addButton = new Button(new Icon(VaadinIcon.PLUS));
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_WARNING);
@@ -1693,20 +1880,21 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
     }
 
 
-    private void createButtonLayout(Div editorLayoutDiv) {
+    private HorizontalLayout createButtonLayout() {
         HorizontalLayout buttonLayout = new HorizontalLayout();
+        buttonLayout.setAlignItems(Alignment.BASELINE);
+        buttonLayout.setAlignItems(Alignment.END);
         buttonLayout.setClassName("button-layout");
-        buttonNewProduct.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        buttonNewProduct.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         buttonSave.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addBulk.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                ButtonVariant.LUMO_WARNING);
         buttonConfigureSet.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonLayout.add(buttonSave, buttonNewProduct, addBulk, buttonConfigureSet);
-        editorLayoutDiv.add(buttonLayout);
+        buttonLayout.add(buttonSave, buttonNewProduct, buttonConfigureSet);
+        return buttonLayout;
     }
 
-    private void createGridLayout(SplitLayout splitLayout) {
+    private Div createGridLayout() {
         Div wrapper = new Div();
+        wrapper.setSizeFull();
         wrapper.setClassName("grid-wrapper");
         SplitLayout gridSplitLayoout = new SplitLayout();
         gridSplitLayoout.setHeight("100%");
@@ -1715,7 +1903,7 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         gridSplitLayoout.addToPrimary(grid);
         gridSplitLayoout.addToSecondary(purchasePriceGrid);
         wrapper.add(gridSplitLayoout);
-        splitLayout.addToPrimary(wrapper);
+        return wrapper;
     }
 
     private void clearForm() {
@@ -1733,18 +1921,25 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
     }
 
     private void tryToCalculateSellPrice(Product product) {
-        Optional<Double>optDoublePurchasePrice = Optional.of(product.getPurchasePrice());
-        Optional<Double>optDoubleSellMargin = Optional.of(product.getSellMargin());
+        try{
+            Optional<Double>optDoublePurchasePrice = Optional.of(Double.valueOf(tfPurchasePrice.getValue().replace(",", ".")));
+            Optional<Double>optDoubleSellMargin = Optional.of(Double.valueOf(tfSellMargin.getValue().replace(",", ".")));
 
-        if(optDoublePurchasePrice.isPresent()) {
-            if(optDoubleSellMargin.isPresent()) {
-                //calc sellPrice
-                product.setSellPrice(optDoublePurchasePrice.get()*optDoubleSellMargin.get());
+            if(optDoublePurchasePrice.isPresent()) {
+                if(optDoubleSellMargin.isPresent()) {
+                    product.setSellPrice(optDoublePurchasePrice.get()  *(optDoubleSellMargin.get()));
+                    tfSellPrice.setValue(product.getSellPrice().toString());
+                }
+            }
+            else{
+                Notification.show("Gelieve te starten met de aankoopprijs en marge");
             }
         }
-        else{
-            Notification.show("Gelieve te starten met de aankoopprijs en marge");
+        catch (Exception e){
+            Notification notification = new Notification("Gelieve decimale getallen in te vullen aub!");
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+
     }
 
     private Notification createReportChangePurchasePrice() {

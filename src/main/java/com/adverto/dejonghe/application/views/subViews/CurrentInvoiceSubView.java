@@ -46,6 +46,9 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
     List<Invoice> filteredInvoices;
     HeaderRow headerRow;
 
+    Checkbox filterToCheck;
+    Checkbox filterApproved;
+    Checkbox filterRejected;
     TextField filterSubject;
     TextField filterName;
     TextField filterResponsible;
@@ -68,6 +71,13 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
     }
 
     private void setUpfilters() {
+
+        filteredInvoices = new ArrayList<>();
+
+        filterToCheck = new Checkbox();
+        filterApproved = new Checkbox();
+        filterRejected = new Checkbox();
+
         filterSubject = new TextField();
         filterSubject.setPlaceholder("Commentaar");
 
@@ -77,13 +87,57 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
         filterName = new TextField();
         filterName.setPlaceholder("Werfadres,Stad,Straat");
 
+        filterToCheck.addValueChangeListener(event -> {
+            if(event.getValue() == true) {
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getToCheck() != null)
+                                .filter(invoice ->
+                                        invoice.getToCheck().equals(filterToCheck.getValue()))
+                                .collect(Collectors.toList()));
+            }
+            else{
+                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
+                proFormaInvoiceGrid.getDataProvider().refreshAll();
+            }
+        });
+
+        filterApproved.addValueChangeListener(event -> {
+            if(event.getValue() == true) {
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getBApproved() != null)
+                                .filter(invoice ->
+                                        invoice.getBApproved().equals(filterApproved.getValue()))
+                                .collect(Collectors.toList()));
+            }
+            else{
+                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
+                proFormaInvoiceGrid.getDataProvider().refreshAll();
+            }
+        });
+
+        filterRejected.addValueChangeListener(event -> {
+            if(event.getValue() == true) {
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getBRejected() != null)
+                                .filter(invoice ->
+                                        invoice.getBRejected().equals(filterRejected.getValue()))
+                                .collect(Collectors.toList()));
+            }
+            else{
+                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
+                proFormaInvoiceGrid.getDataProvider().refreshAll();
+            }
+        });
+
         filterSubject.addValueChangeListener(event -> {
             addItemsToPendingWorkOrderGridFromFilter(
                     proFormaInvoiceList.stream()
                             .filter(invoice ->
                                     invoice.getDiscription().toLowerCase().contains(event.getValue().toLowerCase()))
                             .collect(Collectors.toList()));
-            proFormaInvoiceGrid.getDataProvider().refreshAll();
         });
 
 
@@ -93,7 +147,6 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
                         (filter.getWorkAddress().getCity().toLowerCase().contains(event.getValue().toLowerCase())) ||
                         (filter.getWorkAddress().getAddressName().toLowerCase().contains(event.getValue().toLowerCase()))).collect(Collectors.toList());
                 addItemsToPendingWorkOrderGridFromFilter(collect);
-                proFormaInvoiceGrid.getDataProvider().refreshAll();
             }
             else{
                 addItemsToProformaGrid(proFormaInvoiceList);
@@ -109,18 +162,17 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
         Grid.Column<Invoice> columnInvoiceNumber = proFormaInvoiceGrid.addColumn(invoice -> invoice.getInvoiceNumber()).setHeader("Nummer").setAutoWidth(true);
         Grid.Column<Invoice> columnCustomer = proFormaInvoiceGrid.addColumn(invoice -> invoice.getWorkAddress().getAddressName()).setHeader("Klant").setAutoWidth(true);
         Grid.Column<Invoice> columnInvoiceDate = proFormaInvoiceGrid.addColumn(invoice -> invoice.getInvoiceDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).setHeader("Datum").setAutoWidth(true);
-        proFormaInvoiceGrid.addComponentColumn(item -> {
+        Grid.Column<Invoice> columnToCheck = proFormaInvoiceGrid.addComponentColumn(item -> {
             Checkbox checkbox = new Checkbox();
-            if(item.getToCheck() != null){
+            if (item.getToCheck() != null) {
                 checkbox.setValue(item.getToCheck());
-            }
-            else{
+            } else {
                 checkbox.setValue(false);
             }
             checkbox.setEnabled(false);
             return checkbox;
         }).setHeader("Te Controleren").setAutoWidth(true);
-        proFormaInvoiceGrid.addComponentColumn(item -> {
+        Grid.Column<Invoice> columnApproved = proFormaInvoiceGrid.addComponentColumn(item -> {
             Checkbox checkbox = new Checkbox();
             if(item.getBApproved() != null){
                 checkbox.setValue(item.getBApproved());
@@ -131,7 +183,7 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
             checkbox.setEnabled(false);
             return checkbox;
         }).setHeader("Goedgekeurd").setAutoWidth(true);
-        proFormaInvoiceGrid.addComponentColumn(item -> {
+        Grid.Column<Invoice> columnRejected = proFormaInvoiceGrid.addComponentColumn(item -> {
             Checkbox checkbox = new Checkbox();
             if(item.getBRejected() != null){
                 checkbox.setValue(item.getBRejected());
@@ -174,6 +226,9 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
 
         headerRow = proFormaInvoiceGrid.appendHeaderRow();
         headerRow.getCell(columnInvoiceNumber).setComponent(filterName);
+        headerRow.getCell(columnToCheck).setComponent(filterToCheck);
+        headerRow.getCell(columnApproved).setComponent(filterApproved);
+        headerRow.getCell(columnRejected).setComponent(filterRejected);
         //headerRow.getCell(columnSubject).setComponent(filterSubject);
 
         return proFormaInvoiceGrid;

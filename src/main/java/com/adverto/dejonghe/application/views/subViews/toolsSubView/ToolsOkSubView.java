@@ -25,6 +25,7 @@ public class ToolsOkSubView extends VerticalLayout {
 
     H3 title;
     Tools selectedTool;
+    Integer selectedTeam;
     List<Product> selectedProducts;
 
     @Autowired
@@ -45,10 +46,9 @@ public class ToolsOkSubView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
             productToAdd.setSelectedAmount(1.0);
-            productToAdd.setInternalName(selectedTool.getDiscription());
+            productToAdd.setTeamNumber(selectedTeam);
             this.selectedProducts.add(productToAdd);
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
         });
@@ -58,9 +58,10 @@ public class ToolsOkSubView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {

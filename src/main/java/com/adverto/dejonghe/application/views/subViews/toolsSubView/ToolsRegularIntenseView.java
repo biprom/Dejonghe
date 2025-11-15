@@ -29,6 +29,7 @@ public class ToolsRegularIntenseView extends VerticalLayout {
     Tools selectedTool;
     List<Product> selectedProducts;
     RadioButtonGroup<String> radioGroup;
+    Integer selectedTeam;
 
     @Autowired
     public void ToolsRegularIntenseView(ProductService productService,
@@ -40,6 +41,16 @@ public class ToolsRegularIntenseView extends VerticalLayout {
         radioGroup = new RadioButtonGroup<>();
         radioGroup.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
         radioGroup.setItems(ToolsLabor.REGULAR.getDiscription(),ToolsLabor.INTENSE.getDiscription());
+        radioGroup.addValueChangeListener(event -> {
+            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_INT",""));
+            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_ALG",""));
+            if(event.getValue().equals(ToolsLabor.INTENSE.getDiscription())){
+                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_INT");
+            }
+            else{
+                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_ALG");
+            }
+        });
         Button okButton = new Button("Voeg toe");
         setUpOkButton(okButton);
 
@@ -53,9 +64,10 @@ public class ToolsRegularIntenseView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = new Product();
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
             productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
             productToAdd.setSelectedAmount(1.0);
+            productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setInternalName(selectedTool.getDiscription() +" " + radioGroup.getValue());
             selectedProducts.add(productToAdd);
 
@@ -67,9 +79,10 @@ public class ToolsRegularIntenseView extends VerticalLayout {
         return selectedTool;
     }
 
-    public void setSelectedTool(Tools selectedTool) {
+    public void setSelectedToolTeam(Tools selectedTool, Integer selectedTeam) {
         title.setText(selectedTool.getDiscription() + " toevoegen?");
         this.selectedTool = selectedTool;
+        this.selectedTeam = selectedTeam;
     }
 
     public List<Product> getSelectedProducts() {
