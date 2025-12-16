@@ -2,10 +2,13 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
+import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -18,6 +21,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope("prototype")
@@ -31,6 +35,7 @@ public class ToolsWorkhoursView extends VerticalLayout {
     List<Product> selectedProducts;
     Integer amountWorkhours = 15;
     Integer selectedTeam;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsWorkhoursView(ProductService productService,
@@ -72,7 +77,7 @@ public class ToolsWorkhoursView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
             try{
                 productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours)/60.0);
             }
@@ -80,10 +85,29 @@ public class ToolsWorkhoursView extends VerticalLayout {
                 productToAdd.setSelectedAmount(Double.valueOf(0));
             }
             productToAdd.setTeamNumber(selectedTeam);
-            productToAdd.setInternalName(selectedTool.getDiscription());
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+            }
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
+            productToAdd.setVat(VAT.EENENTWINTIG);
+            productToAdd.setBWorkHour(true);
             selectedProducts.add(productToAdd);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
 
         });
     }
@@ -104,5 +128,20 @@ public class ToolsWorkhoursView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

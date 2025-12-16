@@ -2,10 +2,12 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -18,6 +20,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope("prototype")
@@ -35,6 +38,7 @@ public class ToolsThicknessMeterView extends VerticalLayout {
 
     TextField tfThickness;
     TextField tfRunningMeter;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsThicknessMeterView(ProductService productService,
@@ -99,20 +103,50 @@ public class ToolsThicknessMeterView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
             productToAdd.setSelectedAmount(1.0);
             productToAdd.setTeamNumber(selectedTeam);
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+            }
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
             selectedProducts.add(productToAdd);
 
             Product productToAdd2 = new Product();
-            productToAdd2.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviation());
             productToAdd2.setProductLevel1(productToAdd.getProductLevel1());
             productToAdd2.setSelectedAmount(1.0);
             productToAdd2.setTeamNumber(selectedTeam);
             productToAdd2.setInternalName(selectedTool.getDiscription() + " diepte [cm] : " + depth + " aantal meter : " + meters );
+            if(!bAgro) {
+                if(productToAdd2.getSellPriceIndustry() == 0.0){
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+                }
+                else{
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+            }
             selectedProducts.add(productToAdd2);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
+
         });
     }
 
@@ -136,5 +170,20 @@ public class ToolsThicknessMeterView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

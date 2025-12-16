@@ -263,6 +263,10 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
         configureSetDialog.setWidth("90%");
         configureSetDialog.setHeight("90%");
         configureSetDialog.add(setView);
+        configureSetDialog.addDialogCloseActionListener(event -> {
+            grid.getDataProvider().refreshAll();
+            configureSetDialog.close();
+        });
     }
 
     private void setUpLevelSpan() {
@@ -1464,7 +1468,6 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                 return "";
             }
         }).setHeader("Eenh.").setResizable(true).setFlexGrow(1);
-        grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
 
         grid.setPartNameGenerator(product -> {
             if((product.getSet() != null ) && (product.getSet() == true)){
@@ -1500,6 +1503,9 @@ public class ImportArticleView extends Div implements BeforeEnterObserver {
                 clearForm();
             }
         });
+        grid.addThemeVariants(GridVariant.LUMO_NO_BORDER);
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+
     }
 
     private int compareOnderdeel(String s1, String s2) {

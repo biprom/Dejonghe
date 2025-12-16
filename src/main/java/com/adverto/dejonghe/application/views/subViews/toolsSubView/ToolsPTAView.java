@@ -2,12 +2,14 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.enums.workorder.ToolsPTAOptions;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -39,6 +41,7 @@ public class ToolsPTAView extends VerticalLayout {
     RadioButtonGroup<String> radioGroup;
     TextField tfAmount;
     Integer selectedTeam;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsPTAView(ProductService productService,
@@ -53,15 +56,15 @@ public class ToolsPTAView extends VerticalLayout {
                 ,ToolsPTAOptions.KLEINE_ONDERDELEN_DECANTER.getDiscription()
                 ,ToolsPTAOptions.ONDERDELEN_MIXER_POMP.getDiscription());
         radioGroup.addValueChangeListener(event -> {
-            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_STD",""));
-            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_KOD",""));
-            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_MP",""));
+            selectedTool.setAbbreviation(selectedTool.getAbbreviation().replace("std",""));
+            selectedTool.setAbbreviation(selectedTool.getAbbreviation().replace("kod",""));
+            selectedTool.setAbbreviation(selectedTool.getAbbreviation().replace("mp",""));
             if(event.getValue().equals(ToolsPTAOptions.TROMMEL_SCHROEF.getDiscription())){
-                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_STD");
+                selectedTool.setAbbreviation(selectedTool.getAbbreviation()+"std");
             } else if (event.getValue().equals(ToolsPTAOptions.ONDERDELEN_MIXER_POMP.getDiscription())) {
-                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_MP");
+                selectedTool.setAbbreviation(selectedTool.getAbbreviation()+"mp");
             } else{
-                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_KOD");
+                selectedTool.setAbbreviation(selectedTool.getAbbreviation()+"kod");
             }
         });
         Button okButton = new Button("Voeg toe");
@@ -110,32 +113,62 @@ public class ToolsPTAView extends VerticalLayout {
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
 
-            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
-            productToAdd.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
             productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setSelectedAmount(1.0);
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+            }
             productToAdd.setInternalName(selectedTool.getDiscription() + " " + radioGroup.getValue());
 
             Product productToAdd2 = productService.findByProductCodeContaining(cbPowderType.getValue().getProductCode()).get().get(0);
-            productToAdd2.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviation());
             productToAdd2.setTeamNumber(selectedTeam);
             productToAdd2.setSelectedAmount(Double.valueOf(amountOfKg));
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd2.setTotalPrice(Double.valueOf(amountOfKg) * productToAdd2.getSellPrice());
+                }
+                else{
+                    productToAdd2.setTotalPrice(Double.valueOf(amountOfKg) * productToAdd2.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd2.setTotalPrice(Double.valueOf(amountOfKg) * productToAdd2.getSellPrice());
+            }
             productToAdd2.setInternalName("Aantal gram : " + cbPowderType.getValue().getComment());
 
             Product totalProduct = new Product();
-            totalProduct.setAbbreviation(selectedTool.getAbbreviationIndustry());
+            totalProduct.setAbbreviation(selectedTool.getAbbreviation());
             totalProduct.setTeamNumber(selectedTeam);
             totalProduct.setInternalName("Gebruik PTA + oplaspoeder");
             totalProduct.setSelectedAmount(1.0);
             try{
-                totalProduct.setSellPrice(Double.valueOf(productToAdd.getSellPrice() + (productToAdd2.getSelectedAmount() * productToAdd2.getSellPrice())));
+                totalProduct.setTotalPrice(Double.valueOf(productToAdd.getSellPrice() + (productToAdd2.getSelectedAmount() * productToAdd2.getSellPrice())));
             }
             catch (Exception ex){
                 totalProduct.setSellPrice(0.0);
             }
+
             selectedProducts.add(totalProduct);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
+
 
         });
     }
@@ -158,5 +191,20 @@ public class ToolsPTAView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

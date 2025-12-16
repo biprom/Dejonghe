@@ -41,6 +41,10 @@ vaadin-split-layout::part(splitter) {
     background-color: #223348;
 }
 
+vaadin-split-layout::part(handle){
+    width: 10px;
+}
+
 
 vaadin-combo-box::part(input-field) {
     font-weight: bold;
@@ -55,6 +59,10 @@ vaadin-combo-box[has-value]::part(input-field) {
 vaadin-combo-box:not([has-value])::part(input-field) {
     /*border: 2px dashed grey;*/ /* voorbeeld */
 }
+
+
+
+
 
 
 

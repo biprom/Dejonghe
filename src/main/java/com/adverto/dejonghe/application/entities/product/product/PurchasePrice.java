@@ -22,4 +22,5 @@ public class PurchasePrice {
     private Double quantity;
     private Double price;
     private Supplier supplier;
+    private String comment;
 }

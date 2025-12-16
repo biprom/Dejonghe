@@ -208,6 +208,7 @@ public class FinishedWorkorderView extends Div implements BeforeEnterObserver {
 
     @Override
     public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
+        this.removeAll();
         this.setSizeFull();
         this.add(getButtonLayout());
         setUpOpenWorkOrder();

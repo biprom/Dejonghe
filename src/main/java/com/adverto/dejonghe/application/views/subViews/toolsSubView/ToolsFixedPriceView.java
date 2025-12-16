@@ -2,11 +2,13 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -35,6 +37,7 @@ public class ToolsFixedPriceView extends VerticalLayout {
     Integer amountWorkhours = 1;
     TextField tfWorkhours;
     Integer selectedTeam;
+    Boolean bAgro = false;
 
     @Autowired
     public void ToolsFixedPriceView(ProductService productService,
@@ -76,16 +79,34 @@ public class ToolsFixedPriceView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry());
+            Optional<List<Product>> productListToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviation());
             if(productListToAdd.isPresent()) {
                 Product productToAdd = productListToAdd.get().getFirst();
                 productToAdd.setVat(VAT.EENENTWINTIG);
                 productToAdd.setTeamNumber(selectedTeam);
                 productToAdd.setDate(LocalDate.now());
+                productToAdd.setAbbreviation(selectedTool.getAbbreviation());
                 productToAdd.setSelectedAmount(Double.valueOf(amountWorkhours));
+                if(!bAgro) {
+                    if(productToAdd.getSellPriceIndustry() == 0.0){
+                        productToAdd.setTotalPrice(Double.valueOf(amountWorkhours) * productToAdd.getSellPrice());
+                    }
+                    else{
+                        productToAdd.setTotalPrice(Double.valueOf(amountWorkhours) * productToAdd.getSellPriceIndustry());
+                    }
+                }
+                else{
+                    productToAdd.setTotalPrice(Double.valueOf(amountWorkhours) * productToAdd.getSellPrice());
+                }
                 selectedProducts.add(productToAdd);
                 eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
             }
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
         });
     }
 
@@ -109,4 +130,18 @@ public class ToolsFixedPriceView extends VerticalLayout {
         this.selectedProducts = selectedProducts;
     }
 
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
+    }
 }

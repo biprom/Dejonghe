@@ -10,6 +10,7 @@ import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderHeader;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderTime;
 import com.adverto.dejonghe.application.entities.customers.Address;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.employee.Employee;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
 import com.adverto.dejonghe.application.entities.enums.fleet.Fleet;
@@ -195,6 +196,15 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     Grid.Column<BowlEntity> bowlUitColumn;
     Grid.Column<BowlEntity> draaiurenColumn;
 
+    private boolean sidebarCollapsed;
+    Button slideButton;
+    Icon leftArrowIcon;
+    Icon rightArrowIcon;
+
+    VirtualList<Tools> toolsVirtualList;
+
+    Optional<List<Customer>> customerByWorkAddress;
+
     public WorkorderView(ProductService productService,
                          CustomerService customerService,
                          EmployeeService employeeService,
@@ -277,6 +287,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         setUpSpinnerGrid();
         setUpTimeGrid();
         setUpErrorDialog();
+        updateSidebar();
     }
 
     private void setUpErrorDialog() {
@@ -885,6 +896,8 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 workOrderBinder.writeBean(selectedWorkOrder);
                 workOrderHeaderBinder.writeBean(selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1));
                 selectedWorkOrder.setWorkOrderStatus(WorkOrderStatus.FINISHED);
+                //check to subtract Tools -> Laseren en plooien
+
                 saveSelectedWorkOrder();
                 Notification.show("Deze werkbon is afgewerkt");
             } catch (ValidationException e) {
@@ -926,6 +939,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         showImageButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         showImageButton.addClickListener(e -> {
             if((selectedWorkOrder.getImageList() != null) && (selectedWorkOrder.getImageList().size() > 0)) {
+                showImageSubVieuw.setUser(UserFunction.TECHNICIAN);
                 showImageSubVieuw.setSelectedWorkOrder(selectedWorkOrder.getImageList());
             }
             else{
@@ -1098,6 +1112,21 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     }
 
     private void setUpSplitLayouts() {
+
+        slideButton = new Button();
+        leftArrowIcon = VaadinIcon.ARROW_LEFT.create();
+        rightArrowIcon = VaadinIcon.ARROW_RIGHT.create();
+
+        sidebarCollapsed = true;
+
+        slideButton.addClickListener(event -> {
+            sidebarCollapsed = !sidebarCollapsed;
+            updateSidebar();
+        });
+        slideButton.setAriaLabel("Expand/collapse sidebar");
+        slideButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        slideButton.getStyle().set("float", "right");
+
         mainSplitLayout = new SplitLayout();
         mainSplitLayout.setSizeFull();
         mainSplitLayout.setOrientation(SplitLayout.Orientation.HORIZONTAL);
@@ -1110,6 +1139,11 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         headerSplitLayout.addSplitterDragendListener(event -> {
             selectProductSubView.setSplitPosition(headerSplitLayout.getSplitterPosition());
         });
+    }
+
+    private void updateSidebar() {
+        slideButton.setIcon(sidebarCollapsed ? rightArrowIcon : leftArrowIcon);
+        mainSplitLayout.setSplitterPosition(sidebarCollapsed ? 0 : 90);
     }
 
     private FormLayout getWorkOrderHeader() {
@@ -1290,7 +1324,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     }
 
     private void addAvatarToVirtualList(HorizontalLayout horizontalLayoutLevel6, List<Tools> toolsToAdd) {
-        VirtualList<Tools> toolsVirtualList = new VirtualList<>();
+        toolsVirtualList = new VirtualList<>();
         toolsVirtualList.setHeight("220px");
         visualizeSelectedOptions(toolsToAdd);
         toolsVirtualList.setItems(toolsToAdd);
@@ -1301,9 +1335,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     private void visualizeSelectedOptions(List<Tools> toolsToAdd){
         for(Tools tool : toolsToAdd){
             Set<Product> collect = selectedWorkOrder.getProductList().stream().filter(item -> {
+                System.out.println("Item in selected products : " + item.getAbbreviation() + "->" + tool.getAbbreviation());
                 if(item.getAbbreviation() != null){
-                    return item.getAbbreviation()
-                            .matches(tool.getAbbreviationIndustry());
+                    return ((item.getAbbreviation().contains(tool.getAbbreviation())));
                 }
                 else{
                     return false;
@@ -1782,16 +1816,6 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         horizontalLayout.setWidth("100%");
         horizontalLayout.setSpacing(true);
 
-        Button addProductScaleButton = new Button("LINKS");
-        Button seeWorkOrderScaleButton = new Button("RECHTS");
-
-        addProductScaleButton.addClickListener(e -> {
-            mainSplitLayout.setSplitterPosition(70);
-        });
-        seeWorkOrderScaleButton.addClickListener(e -> {
-            mainSplitLayout.setSplitterPosition(30);
-        });
-
         Button searchRunningWorkorders = new Button("Zoek Werkbon");
         searchRunningWorkorders.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         searchRunningWorkorders.addClickListener(e -> {
@@ -1818,9 +1842,10 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             }
         });
 
+        horizontalLayout.add(slideButton);
         horizontalLayout.add(addTabButton);
         horizontalLayout.add(buddyTab);
-        horizontalLayout.add(searchRunningWorkorders,addProductScaleButton,seeWorkOrderScaleButton);
+        horizontalLayout.add(searchRunningWorkorders);
         horizontalLayout.setAlignSelf(FlexComponent.Alignment.END, searchRunningWorkorders);
 
         return horizontalLayout;
@@ -1851,6 +1876,16 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             }
             else{
                 return address.getAddressName();
+            }
+        });
+        addressComboBox.addValueChangeListener(event -> {
+            customerByWorkAddress = customerService.getCustomerByWorkAddress(event.getValue());
+            if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
+                selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
+            }
+            else{
+                Notification notification = new Notification();
+                notification.setText("Dit werkadres bevat meerdere klanten!");
             }
         });
         addressComboBox.setWidthFull();
@@ -1890,9 +1925,11 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     if((tool.equals(Tools.PERSONENKOOI))||
                     (tool.equals(Tools.LINTZAAGMACHINE))||
                     (tool.equals(Tools.SCHAARLIFT_JLG_KLEIN))||
+                    (tool.equals(Tools.MAX_TRAILER))||
                     (tool.equals(Tools.SCHAARLIFT_JLG_GROOT))){
                         toolsOkSubView.setSelectedToolTeam(tool, selectedTeam-1);
                         toolsOkSubView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsOkSubView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsOkSubView);
                     }
                     if((tool.equals(Tools.GRIJPBAK))||
@@ -1900,12 +1937,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                             (tool.equals(Tools.BREEKHAMER60TON))){
                         toolsRegularIntenseView.setSelectedToolTeam(tool, selectedTeam-1);
                         toolsRegularIntenseView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsRegularIntenseView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsRegularIntenseView);
                     }
                     if((tool.equals(Tools.RUPSSCHAARLIFT))||
                             (tool.equals(Tools.GRAAFKRAAN_1700))){
                         toolsRegularIntenseFuelView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsRegularIntenseFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsRegularIntenseFuelView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsRegularIntenseFuelView);
                     }
                     if((tool.equals(Tools.SPINHOOGTEWERKER))||
@@ -1916,12 +1955,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                             (tool.equals(Tools.STAMPER_TRILPLAAT_500))){
                         toolsFuelView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsFuelView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsFuelView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsFuelView);
                     }
                     if((tool.equals(Tools.BROMMER))||
                             (tool.equals(Tools.BETONZAAGMACHINE))){
                         toolsThicknessMeterView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsThicknessMeterView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsThicknessMeterView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsThicknessMeterView);
                     }
                     if(
@@ -1932,6 +1973,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                         (tool.equals(Tools.CNC_SNIJDEN))){
                         toolsWorkhoursView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsWorkhoursView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsWorkhoursView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsWorkhoursView);
                     }
                     if((tool.equals(Tools.BALANCEREN_KLEINE_ONDERDELEN)||
@@ -1939,16 +1981,19 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                             (tool.equals(Tools.KLEINE_DRAAIBANK)))){
                         toolsFixedPriceView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsFixedPriceView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsFixedPriceView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsFixedPriceView);
                     }
                     if((tool.equals(Tools.OPLASSEN_PTA))){
                         toolsPTAView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsPTAView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsPTAView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsPTAView);
                     }
                     if((tool.equals(Tools.SPIEBAAN_DUWEN))){
                         toolsSpyLaneView.setSelectedToolTeam(tool,selectedTeam-1);
                         toolsSpyLaneView.setSelectedProducts(selectedWorkOrder.getProductList());
+                        toolsSpyLaneView.setCustomerByWorkAddress(customerByWorkAddress);
                         optionDialog.add(toolsSpyLaneView);
                     }
                     optionDialog.open();
@@ -1963,6 +2008,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
         selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
+        customerByWorkAddress = customerService.getCustomerByWorkAddress(selectedWorkOrder.getWorkAddress());
+        if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
+            selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
+        }
+        else{
+            Notification notification = new Notification();
+            notification.setText("Dit werkadres bevat meerdere klanten!");
+        }
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
         addItemsToBowlGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getBowlEntityList());
         updateGetImageButton();
@@ -2002,6 +2055,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
         selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
+        customerByWorkAddress = customerService.getCustomerByWorkAddress(selectedWorkOrder.getWorkAddress());
+        if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
+            selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
+        }
+        else{
+            Notification notification = new Notification();
+            notification.setText("Dit werkadres bevat meerdere klanten!");
+        }
         workOrderBinder.validate();
         workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
@@ -2063,6 +2124,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderBinder.readBean(selectedWorkOrder);
         workOrderHeaderBinder.readBean(selectedWorkOrder.getWorkOrderHeaderList().get(0));
         selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.TECHNICIAN, selectedWorkOrder.getWorkDateTime().toLocalDate());
+        customerByWorkAddress = customerService.getCustomerByWorkAddress(selectedWorkOrder.getWorkAddress());
+        if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
+            selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
+        }
+        else{
+            Notification notification = new Notification();
+            notification.setText("Dit werkadres bevat meerdere klanten!");
+        }
         workOrderBinder.validate();
         workOrderHeaderBinder.validate();
         addItemsToWorkTimeGrid(selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkOrderTimeList());
@@ -2089,6 +2158,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             UI.getCurrent().access(() -> {
                 try {
                     saveSelectedWorkOrder();
+                    if((selectedWorkOrder.getWorkLocation() != null) && (selectedWorkOrder.getWorkLocation().equals(WorkLocation.WORKPLACE))){
+                        vLayoutHeaderLevel6Tabs.removeAll();
+                        vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.WORKPLACE));
+                    }
+                    else{
+                        vLayoutHeaderLevel6Tabs.removeAll();
+                        vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.ON_THE_MOVE));
+                    }
                     selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
                     selectProductSubView.getSelectedProductGrid().getDataProvider().refreshAll();
                     if(event.getMessage().matches("Product verwijderd")){
@@ -2102,15 +2179,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
 
                 }
                 catch (ValidationException e) {
-                    Notification notification = Notification.show("Gelieve eerst de verplichte velden in te vullen aub.");
-                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    Notification notification = Notification.show("Product toegevoegd maar gelieve eerst de hoofding in te vullen aub.");
+                    notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                     selectProductSubView.getSelectedProductList().remove(selectProductSubView.getSelectedProductList().get(selectProductSubView.getSelectedProductList().size() - 1));
                     selectProductSubView.getSelectedProductGrid().getDataProvider().refreshAll();
                 }
             });
         });
     }
-
 
     @Override
     public void setParameter(BeforeEvent beforeEvent,@OptionalParameter String s) {

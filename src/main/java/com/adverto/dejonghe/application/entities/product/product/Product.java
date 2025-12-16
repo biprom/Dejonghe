@@ -24,16 +24,19 @@ public class Product implements Serializable {
     private Boolean set;
     private Boolean setElement;
     private Double selectedAmount;
-    private String productCode;
-    private String internalName;
+    private String productCode = "";
+    private String internalName = "";
     private String abbreviation;
-    private Double purchasePrice;
-    private Double sellPrice;
-    private Double sellMargin;
-    private Double totalPrice;
-    private VAT vat;
+    private Double purchasePrice = 0.0;
+    private Double sellPrice = 0.0;
+    private Double sellPriceIndustry = 0.0;
+    private Double sellMargin = 0.0;
+    private Double sellMarginIndustry = 0.0;
+    private Double totalPrice = 0.0;
+    private VAT vat = VAT.EENENTWINTIG;
     private String positionNumber;
     private String unit;
+    private String moq;
     private String comment;
     private List<PurchasePrice> purchasePriseList;
     private List<Long>buddyList;
@@ -54,4 +57,7 @@ public class Product implements Serializable {
     private LocalDate attachementNumber;
     private Boolean remark;
     private List<Product>setList;
+    List<String>imageList;
+    List<String>pdfList;
+    List<ProductLink>linkDocumentList;
 }

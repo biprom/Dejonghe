@@ -72,6 +72,11 @@ public class CustomerService {
     }
 
     public Optional<List<Customer>> getCustomerByWorkAddress(Address workAddress) {
-        return Optional.of(customerRepo.findByAddresses_CityAndAddresses_StreetAndAddresses_Number(workAddress.getCity(), workAddress.getStreet(), workAddress.getNumber()));
+        try{
+            return Optional.of(customerRepo.findByAddresses_CityAndAddresses_StreetAndAddresses_Number(workAddress.getCity(), workAddress.getStreet(), workAddress.getNumber()));
+        }
+        catch(Exception e){
+            return Optional.empty();
+        }
     }
 }

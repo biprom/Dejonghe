@@ -106,6 +106,8 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     Checkbox checkbApproved;
     Checkbox checkbRejected;
 
+    Optional<List<Customer>> allCustomers;
+
     public InvoiceView(ProductService productService,
                        SelectProductSubView selectProductSubView,
                        SearchCustomerSubView searchCustomerSubView,
@@ -241,12 +243,14 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
                 .bind(Invoice::getBRejected, Invoice::setBRejected);
         invoiceBinder.addValueChangeListener(workOrder -> {
             try {
-                selectedInvoice.setCustomer(selectedCustomer);
-                invoiceBinder.writeBean(selectedInvoice);
-                selectedInvoice.setProductList(selectProductSubView.getSelectedProductList());
-                invoiceService.save(selectedInvoice);
+                if(workOrder.isFromClient()){
+                    selectedInvoice.setCustomer(selectedCustomer);
+                    invoiceBinder.writeBean(selectedInvoice);
+                    selectedInvoice.setProductList(selectProductSubView.getSelectedProductList());
+                    invoiceService.save(selectedInvoice);
+                }
             } catch (ValidationException e) {
-                Notification.show("Kon de werkbon nog niet bewaren");
+                Notification.show("Kon de werkbon nog niet bewaren, gelieve alle velden in te vullen aub");
             }
         });
     }
@@ -262,7 +266,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     private void setUpSearchCustomerDialog() {
         searchCustomerDialog = new Dialog();
         searchCustomerDialog.add(searchCustomerSubView);
-        searchCustomerSubView.setDialog(searchCustomerDialog);
+        //searchCustomerSubView.setDialog(searchCustomerDialog);
         searchCustomerDialog.setCloseOnEsc(true);
         searchCustomerDialog.setHeight("50%");
         searchCustomerDialog.setWidth("50%");
@@ -405,9 +409,9 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     }
 
     private ComboBox getCustomerComboBox() {
-        Optional<List<Customer>> allCustomerAddresses = customerService.getAllCustomers();
-        if (allCustomerAddresses.isPresent()) {
-            customerComboBox.setItems(allCustomerAddresses.get());
+        allCustomers = customerService.getAllCustomers();
+        if (allCustomers.isPresent()) {
+            customerComboBox.setItems(allCustomers.get());
         }
         else{
             Notification.show("Geen Klanten in de database");
@@ -415,7 +419,6 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         customerComboBox.setPlaceholder("Gelieve een klant te selecteren");
         customerComboBox.setItemLabelGenerator(address -> address.getName());
         customerComboBox.addValueChangeListener(event -> {
-
                 customerCard.removeAll();
                 customerCard.setTitle(new Div(event.getValue().getName()));
                 customerCard.setSubtitle(new Div(event.getValue().getVatNumber()));
@@ -538,6 +541,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         showImageButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         showImageButton.addClickListener(e -> {
             if((selectedInvoice.getImageList() != null) && (selectedInvoice.getImageList().size() > 0)) {
+                showImageSubView.setUser(UserFunction.ADMIN);
                 showImageSubView.setSelectedWorkOrder(selectedInvoice.getImageList());
             }
             else{
@@ -594,10 +598,13 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
             Optional<Invoice> optionalInvoiceById = invoiceService.getInvoiceById(s);
             if(optionalInvoiceById.isPresent()) {
                 selectedInvoice = optionalInvoiceById.get();
-                invoiceBinder.readBean(selectedInvoice);
-                customerComboBox.setValue(selectedInvoice.getCustomer());
                 selectProductSubView.setSelectedProductList(selectedInvoice.getProductList());
                 selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.ADMIN, selectedInvoice.getInvoiceDate());
+                selectedCustomer = selectedInvoice.getCustomer();
+                selectProductSubView.setSelectedCustmer(selectedCustomer);
+                invoiceBinder.readBean(selectedInvoice);
+                Customer customerToSelect = allCustomers.get().stream().filter(item -> item.getName().matches(selectedInvoice.getCustomer().getName())).findFirst().get();
+                customerComboBox.setValue(customerToSelect);
             }
             else{
                 Notification show = Notification.show("Deze werkbon kon niet worden geopend!");

@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
@@ -38,9 +40,7 @@ public class ProductService {
 
 
     public void save(Product newProduct) {
-        if (newProduct.getInternalName() != null) {
             productRepo.save(newProduct);
-        }
     }
 
     public Optional<Product> get(String id) {
@@ -185,93 +185,66 @@ public class ProductService {
         }
     }
 
-    public Optional<Product> getWorkhourForRegularLocalAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261455");
+    public Optional<List<Product>> getAllSetsContaining(Product product) {
+        Optional<List<Product>>allSets = getAllSets();
+        if (!allSets.isEmpty()) {
+            List<Product> collect = allSets.get().stream().filter(set -> set.getSetList().stream().filter(setItem -> setItem.getId().equals(product.getId())).findFirst().isPresent()).collect(Collectors.toList());
+            return Optional.of(collect);
+        }
+        else{
+            return Optional.empty();
+        }
     }
-    public Optional<Product> getWorkhourForRegularOnTheMoveAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261456");
+
+    public Optional<Product> getWorkhourForRegularLocal(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-AT").stream().findFirst();
     }
-    public Optional<Product> getWorkhourForRegularLocalIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261461");
-    }
-    public Optional<Product> getWorkhourForOnRegularTheMoveIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261462");
+    public Optional<Product> getWorkhourForRegularOnTheMove(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-VERP").stream().findFirst();
     }
 
 
-    public Optional<Product> getWorkhourForCentrifugeLocalAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261457");
+    public Optional<Product> getWorkhourForCentrifugeLocal(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-CEN-AT-").stream().findFirst();
     }
-    public Optional<Product> getWorkhourForCentrifugeOnTheMoveAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261457");
-    }
-    public Optional<Product> getWorkhourForCentrifugeLocalIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261463");
-    }
-    public Optional<Product> getWorkhourForOnCentrifugeTheMoveIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261463");
+    public Optional<Product> getWorkhourForCentrifugeOnTheMove(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-CEN-VERP").stream().findFirst();
     }
 
 
-    public Optional<Product> getWorkhourForProgammationLocalAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261458");
+    public Optional<Product> getWorkhourForProgammationLocal(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-PRO-AT").stream().findFirst();
     }
-    public Optional<Product> getWorkhourForProgammationOnTheMoveAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261458");
-    }
-    public Optional<Product> getWorkhourForProgammationLocalIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261464");
-    }
-    public Optional<Product> getWorkhourForOnProgammationTheMoveIndustrie(){
-        return productRepo.findById("6878ba088ebc04229d261464");
+    public Optional<Product> getWorkhourForProgammationOnTheMove(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-PRO-VERP").stream().findFirst();
     }
 
-    public Optional<Product> getRegularKmAgro(){
-        return productRepo.findById("6878b9da8ebc04229d26145e");
+    public Optional<Product> getRegularKm(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("KMV").stream().findFirst();
     }
 
-    public Optional<Product> getRegularCraneAgro(){
-        return productRepo.findById("6878b9da8ebc04229d26145f");
+    public Optional<Product> getRegularCrane(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("KMV-kraan").stream().findFirst();
     }
 
-    public Optional<Product> getRegularTrailerAgro(){
-        return productRepo.findById("6878b9da8ebc04229d261460");
+    public Optional<Product> getRegularTrailer(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("KMV-oplegger").stream().findFirst();
     }
 
-    public Optional<Product> getRegularKmIndustry(){
-        return productRepo.findById("6878ba088ebc04229d261469");
+    public Optional<Product> getWorkHoursCraneRegular(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-kraan-AL").stream().findFirst();
     }
 
-    public Optional<Product> getRegularCraneIndustry(){
-        return productRepo.findById("6878ba088ebc04229d26146a");
+    public Optional<Product> getWorkHoursCraneIntense(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-kraan-IN").stream().findFirst();
     }
 
-    public Optional<Product> getRegularTrailerIndustry(){
-        return productRepo.findById("6878ba088ebc04229d26146b");
+    public Optional<Product> getWorkHoursCraneForfait(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("TRANS-kraan").stream().findFirst();
     }
 
-    public Optional<Product> getWorkHoursCraneRegularAgro(){
-        return productRepo.findById("6878b9da8ebc04229d26145a");
-    }
-
-    public Optional<Product> getWorkHoursCraneIntenseAgro(){
-        return productRepo.findById("6878b9da8ebc04229d26145b");
-    }
-
-    public Optional<Product> getWorkHoursCraneForfaitAgro(){
-        return productRepo.findById("6878b9da8ebc04229d26145c");
-    }
-
-    public Optional<Product> getWorkHoursCraneRegularIndustry(){
-        return productRepo.findById("6878ba088ebc04229d261465");
-    }
-
-    public Optional<Product> getWorkHoursCraneIntenseIndustry(){
-        return productRepo.findById("6878ba088ebc04229d261466");
-    }
-
-    public Optional<Product> getWorkHoursCraneForfaitIndustry(){
-        return productRepo.findById("6878ba088ebc04229d261467");
+    public Optional<Product> getWorkHoursTrailerForfait(){
+        return productRepo.findByProductCodeEqualsIgnoreCase("TRANS-oplegger").stream().findFirst();
     }
 
     public List<Product> findProductsByLevels(

@@ -10,6 +10,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -142,17 +143,10 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
 
 
         filterName.addValueChangeListener(event -> {
-            if(event.getValue().length() > 0){
                 List<Invoice> collect = proFormaInvoiceList.stream().filter(filter -> (filter.getWorkAddress().getStreet().toLowerCase().contains(event.getValue().toLowerCase())) ||
                         (filter.getWorkAddress().getCity().toLowerCase().contains(event.getValue().toLowerCase())) ||
                         (filter.getWorkAddress().getAddressName().toLowerCase().contains(event.getValue().toLowerCase()))).collect(Collectors.toList());
                 addItemsToPendingWorkOrderGridFromFilter(collect);
-            }
-            else{
-                addItemsToProformaGrid(proFormaInvoiceList);
-                proFormaInvoiceGrid.getDataProvider().refreshAll();
-            }
-
         });
     }
 
@@ -207,6 +201,30 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
 //            textArea.setReadOnly(true);
 //            return textArea;
 //        }).setHeader("Omschrijving").setAutoWidth(true);
+
+        proFormaInvoiceGrid.addComponentColumn(item -> {
+            if((item.getBApproved() != null) && (item.getBApproved() == true)){
+                Span badge = new Span("Goedgekeurd");
+                badge.getElement().getThemeList().add("badge success");
+                return badge;
+            }
+            if((item.getBRejected() != null) && (item.getBRejected() == true)){
+                Span badge = new Span("Afgekeurd");
+                badge.getElement().getThemeList().add("badge error");
+                return badge;
+            }
+            if((item.getToCheck() != null) && (item.getToCheck() == true)){
+                Span badge = new Span("Te controleren");
+                badge.getElement().getThemeList().add("badge warning");
+                return badge;
+            }
+            else{
+                Span badge = new Span("Te bekijken");
+                badge.getElement().getThemeList().add("badge base");
+                return badge;
+            }
+
+        });
 
         proFormaInvoiceGrid.addComponentColumn(item -> {
             Button closeButton = new Button(VaadinIcon.TRASH.create());

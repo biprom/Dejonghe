@@ -2,10 +2,12 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -18,6 +20,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope("prototype")
@@ -32,6 +35,7 @@ public class ToolsFuelView extends VerticalLayout {
     Integer amountFuel = 1;
     TextField tfFuel;
     Integer selectedTeam;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsFuelView(ProductService productService,
@@ -72,20 +76,51 @@ public class ToolsFuelView extends VerticalLayout {
     }
 
     private void setUpOkButton(Button okButton) {
-        okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS, ButtonVariant.LUMO_TERTIARY);
+        okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.addClickListener(e -> {
-            Product productToAdd = productService.findByProductCodeContaining("BRANDSTOF").get().get(0);
+            Product productToAdd = productService.findByProductCodeContaining("OPVER-brandstof").get().get(0);
             productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setSelectedAmount(Double.valueOf(amountFuel));
             productToAdd.setInternalName("Brandstof : " + selectedTool.getDiscription());
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(Double.valueOf(amountFuel) * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(Double.valueOf(amountFuel) * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(Double.valueOf(amountFuel) * productToAdd.getSellPrice());
+            }
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
             selectedProducts.add(productToAdd);
 
-            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
             productToAdd2.setSelectedAmount(1.0);
             productToAdd2.setTeamNumber(selectedTeam);
             productToAdd2.setInternalName("Forfait : " + selectedTool.getDiscription());
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+                }
+                else{
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+            }
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviation());
             selectedProducts.add(productToAdd2);
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
+
         });
     }
 
@@ -107,5 +142,20 @@ public class ToolsFuelView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

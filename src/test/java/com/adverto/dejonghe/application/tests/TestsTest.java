@@ -37,23 +37,36 @@ class Tests{
     }
 
     @Test
-    void copyCommenArtNumbersPurchasePrice() throws JSONException {
+    void copyCommenArtNumbersPurchasePrice() {
         List<Product>productList = productService.getAllProducts().get();
         int i = 0;
         for(Product product:productList){
             if((product.getProductCode() != null) && (product.getProductCode().length() > 0)){
-                Optional<List<Product>>commonProductList = productService.findByProductCodeContaining(product.getProductCode());
-                if(commonProductList.isPresent()){
-                    Double maxPurchasePrice = commonProductList.get().stream().filter(item -> item.getPurchasePrice() != null).map(item -> item.getPurchasePrice()).max(Double::compareTo).get();
-                    for(Product commonProduct:commonProductList.get()){
-                        commonProduct.setPurchasePrice(maxPurchasePrice);
-                        System.out.println(i + " " +commonProduct.getProductCode() + " " + commonProduct.getPurchasePrice());
+                Optional<List<Product>>commonProductList = productService.findByProductCodeEqualCaseInsensitive(product.getProductCode().toLowerCase());
+                if((commonProductList.get() != null) && (commonProductList.get().size() > 0)){
+                    Optional<Double> maxPurchasePrice = commonProductList.get().stream().filter(item -> item.getPurchasePrice() != null).map(item -> item.getPurchasePrice()).max(Double::compareTo);
+                    Optional<Product> optInternalName = commonProductList.get().stream().filter(item -> (item.getInternalName() != null) && (item.getInternalName().length() > 0)).findFirst();
+                    Optional<Product> optComment = commonProductList.get().stream().filter(item -> (item.getComment() != null) && (item.getComment().length() > 0)).findFirst();
+                    if(maxPurchasePrice.isPresent()){
+                        for(Product commonProduct:commonProductList.get()){
+                            commonProduct.setPurchasePrice(maxPurchasePrice.get());
+                            if(commonProduct.getSellMargin() != null){
+                                commonProduct.setSellPrice(commonProduct.getSellMargin()*commonProduct.getPurchasePrice());
+                            }
+                            if(optInternalName.isPresent()){
+                                commonProduct.setInternalName(optInternalName.get().getInternalName());
+                            }
+                            if(optComment.isPresent()){
+                                commonProduct.setComment(optComment.get().getComment());
+                            }
+                            productService.save(commonProduct);
+                            System.out.println(i + " " +commonProduct.getProductCode() + " " + commonProduct.getPurchasePrice() + " " + commonProduct.getSellMargin() + " " + commonProduct.getSellPrice());
+                        }
                     }
                 }
+                }
             }
-            i++;
         }
-    }
 
 
     //@Test

@@ -406,11 +406,16 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
                         selectedWorkOrders.remove(selectedWorkOrder);
                         workOrderService.delete(selectedWorkOrder);
                         //now delete if workorder to delete is in a parent
-                        Optional<WorkOrder> optParent = workOrderService.getStarterByLinkedId(selectedWorkOrder.getId());
-                        if(optParent.isPresent()){
-                            optParent.get().getLinkedWorkOrders().remove(selectedWorkOrder.getId());
+                        try{
+                            Optional<WorkOrder> optParent = workOrderService.getStarterByLinkedId(selectedWorkOrder.getId());
+                            if(optParent.isPresent()){
+                                optParent.get().getLinkedWorkOrders().remove(selectedWorkOrder.getId());
+                            }
+                            workOrderService.save(optParent.get());
                         }
-                        workOrderService.save(optParent.get());
+                        catch(Exception e){
+
+                        }
                         addItemsToPendingWorkOrderGrid(selectedWorkOrders);
                         pendingWorkOrdersGrid.getDataProvider().refreshAll();
                         Notification.show("Werkbon is verwijderd");

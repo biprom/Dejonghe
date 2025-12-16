@@ -235,6 +235,7 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         searchCustomerDialog.setWidth("50%");
         searchCustomerDialog.addDialogCloseActionListener(event -> {
             selectedCustomer = searchCustomerSubView.getSelectedCustomer();
+            selectProductSubView.setSelectedCustmer(selectedCustomer);
             selectedAddress = searchCustomerSubView.getSelectedAddress();
             searchCustomerDialog.close();
             try{
@@ -302,6 +303,9 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         customerCard = new Card();
         badge = new Span("Geen status");
         badge.getElement().getThemeList().add("badge success");
+        badge.addClickListener(click -> {
+            searchCustomerDialog.open();
+        });
         customerCard.addThemeVariants(CardVariant.LUMO_ELEVATED);
         customerCard.setTitle(new Div("Naam klant"));
         customerCard.setSubtitle(new Div("BTW- nummer klant"));
@@ -460,6 +464,7 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         showImageButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         showImageButton.addClickListener(e -> {
             if((selectedInvoice.getImageList() != null) && (selectedInvoice.getImageList().size() > 0)) {
+                showImageSubView.setUser(UserFunction.ADMIN);
                 showImageSubView.setSelectedWorkOrder(selectedInvoice.getImageList());
             }
             else{
@@ -478,6 +483,7 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         selectedInvoice = newInvoice;
         invoiceBinder.readBean(selectedInvoice);
         selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.ADMIN, selectedInvoice.getInvoiceDate());
+        selectProductSubView.setSelectedCustmer(selectedCustomer);
     }
 
     @Override

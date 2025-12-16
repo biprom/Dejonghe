@@ -3,7 +3,8 @@ package com.adverto.dejonghe.application.entities.enums.employee;
 public enum UserFunction {
     ADMIN ("Administrator"),
     TECHNICIAN   ("Technieker"),
-    WAREHOUSEWORKER("WarehouseWorker"),;
+    WAREHOUSEWORKER("WarehouseWorker"),
+    MAKE_SETS   ("MakeSets"),;
 
     private final String discription;
 

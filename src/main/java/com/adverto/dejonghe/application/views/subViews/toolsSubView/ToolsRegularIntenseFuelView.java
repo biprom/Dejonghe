@@ -2,11 +2,13 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.enums.workorder.ToolsLabor;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -21,6 +23,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope("prototype")
@@ -36,6 +39,7 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
     Integer amountFuel = 1;
     TextField tfFuel;
     Integer selectedTeam;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsRegularIntenseFuelView(ProductService productService,
@@ -49,13 +53,13 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
         radioGroup.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
         radioGroup.setItems(ToolsLabor.REGULAR.getDiscription(),ToolsLabor.INTENSE.getDiscription());
         radioGroup.addValueChangeListener(event -> {
-            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_INT",""));
-            selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry().replace("_ALG",""));
+            selectedTool.setAbbreviation(selectedTool.getAbbreviation().replace("IN",""));
+            selectedTool.setAbbreviation(selectedTool.getAbbreviation().replace("AL",""));
             if(event.getValue().equals(ToolsLabor.INTENSE.getDiscription())){
-                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_INT");
+                selectedTool.setAbbreviation(selectedTool.getAbbreviation()+"IN");
             }
             else{
-                selectedTool.setAbbreviationIndustry(selectedTool.getAbbreviationIndustry()+"_ALG");
+                selectedTool.setAbbreviation(selectedTool.getAbbreviation()+"AL");
             }
         });
 
@@ -92,18 +96,49 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
 
-            Product productToAdd = productService.findByProductCodeContaining("BRANDSTOF").get().get(0);
+            Product productToAdd = productService.findByProductCodeContaining("OPVER-brandstof").get().get(0);
             productToAdd.setSelectedAmount(Double.valueOf(amountFuel));
             productToAdd.setTeamNumber(selectedTeam);
             productToAdd.setInternalName("Brandstof : " + selectedTool.getDiscription());
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+            }
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
             selectedProducts.add(productToAdd);
 
-            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            Product productToAdd2 = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
             productToAdd2.setSelectedAmount(1.0);
             productToAdd2.setTeamNumber(selectedTeam);
+            if(!bAgro) {
+                if(productToAdd2.getSellPriceIndustry() == 0.0){
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+                }
+                else{
+                    productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd2.setTotalPrice(1.0 * productToAdd2.getSellPrice());
+            }
+            productToAdd2.setAbbreviation(selectedTool.getAbbreviation());
             selectedProducts.add(productToAdd2);
 
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
+
         });
     }
 
@@ -125,5 +160,20 @@ public class ToolsRegularIntenseFuelView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

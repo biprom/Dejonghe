@@ -2,10 +2,12 @@ package com.adverto.dejonghe.application.views.subViews.toolsSubView;
 
 import com.adverto.dejonghe.application.customEvents.AddRemoveProductEvent;
 import com.adverto.dejonghe.application.dbservices.ProductService;
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.workorder.Tools;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -15,6 +17,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Scope("prototype")
@@ -27,6 +30,7 @@ public class ToolsOkSubView extends VerticalLayout {
     Tools selectedTool;
     Integer selectedTeam;
     List<Product> selectedProducts;
+    Boolean bAgro;
 
     @Autowired
     public void ToolsOkSubView(ProductService productService,
@@ -46,11 +50,29 @@ public class ToolsOkSubView extends VerticalLayout {
         okButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
         okButton.setWidth("100%");
         okButton.addClickListener(e -> {
-            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviationIndustry()).get().get(0);
+            Product productToAdd = productService.findByProductCodeContaining(selectedTool.getAbbreviation()).get().get(0);
             productToAdd.setSelectedAmount(1.0);
             productToAdd.setTeamNumber(selectedTeam);
+            if(!bAgro) {
+                if(productToAdd.getSellPriceIndustry() == 0.0){
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+                }
+                else{
+                    productToAdd.setTotalPrice(1.0 * productToAdd.getSellPriceIndustry());
+                }
+            }
+            else{
+                productToAdd.setTotalPrice(1.0 * productToAdd.getSellPrice());
+            }
+            productToAdd.setAbbreviation(selectedTool.getAbbreviation());
             this.selectedProducts.add(productToAdd);
             eventPublisher.publishEvent(new AddRemoveProductEvent(this, "Product toegevoegd",null));
+
+            getParent().ifPresent(parent -> {
+                if (parent instanceof Dialog dialog) {
+                    dialog.close();
+                }
+            });
         });
     }
 
@@ -70,5 +92,20 @@ public class ToolsOkSubView extends VerticalLayout {
 
     public void setSelectedProducts(List<Product> selectedProducts) {
         this.selectedProducts = selectedProducts;
+    }
+
+    public void setCustomerByWorkAddress(Optional<List<Customer>> customerByWorkAddress) {
+        try{
+            if(customerByWorkAddress.get().getFirst().getBIndustry()){
+                bAgro = !customerByWorkAddress.get().getFirst().getBIndustry();
+            }
+            else{
+                bAgro = true;
+            }
+        }
+        catch(Exception e){
+            bAgro = true;
+        }
+
     }
 }

@@ -1,9 +1,15 @@
 package com.adverto.dejonghe.application.views.subViews;
 
 import com.adverto.dejonghe.application.dbservices.WorkOrderService;
+import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
 import com.adverto.dejonghe.application.entities.images.ImageEntity;
+import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.adverto.dejonghe.application.services.ImageService;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -32,7 +38,11 @@ public class ShowImageSubVieuw extends VerticalLayout implements BeforeEnterObse
     List<ImageEntity>imageEntityList = new ArrayList<>();
     InputStream imageInputStream;
 
+    UserFunction userFunction = UserFunction.ADMIN;
     List<String>imageList;
+
+    ConfirmDialog confirmDialog;
+    Span title = new Span("Foto's");
 
     @Autowired
     public ShowImageSubVieuw(WorkOrderService workOrderService,
@@ -40,21 +50,37 @@ public class ShowImageSubVieuw extends VerticalLayout implements BeforeEnterObse
         this.workOrderService = workOrderService;
         this.imageService = imageService;
         this.removeAll();
+        setUpConfirmDialog();
+    }
+
+    private void setUpConfirmDialog() {
+        confirmDialog = new ConfirmDialog();
+        confirmDialog.setHeader("Unsaved changes");
+        confirmDialog.setText(
+                "There are unsaved changes. Do you want to discard or save them?");
+
+        confirmDialog.setRejectable(true);
+        confirmDialog.setRejectText("Annuleer");
+        confirmDialog.addRejectListener(event -> confirmDialog.close());
+
+        confirmDialog.setConfirmText("Verwijder");
     }
 
     private void setUpImages() {
         imageEntityList.clear();
         this.removeAll();
+        this.add(title);
         if(imageList != null && imageList.size() > 0) {
             for(String imageId : imageList) {
                 try {
                     Optional<ImageEntity> optionalImageEntity = imageService.getImage(imageId);
                     HorizontalLayout layout = new HorizontalLayout();
+                    layout.setSizeFull();
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     try {
                         imageInputStream = optionalImageEntity.get().getInputStream();
                         Thumbnails.of( imageInputStream)
-                                .size(900, 900)
+                                .size(450, 450)
                                 .toOutputStream(baos);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
@@ -70,21 +96,43 @@ public class ShowImageSubVieuw extends VerticalLayout implements BeforeEnterObse
                                 return byteArrayInputStream;
                             });
                     Image foto = new Image(imageResource,optionalImageEntity.get().getImage());
-                    TextArea textArea = new TextArea();
-                    textArea.setPlaceholder("Gelieve altijd wat commentaar bij de foto's te plaatsen!");
-                    if(optionalImageEntity.get().getComment() != null) {
-                        textArea.setValue(optionalImageEntity.get().getComment());
-                    }
-                    textArea.addValueChangeListener(event -> {
-                        try {
-                            String newId = imageService.updateImageComment(imageId,textArea.getValue());
-                            imageList.remove(imageId);
-                            imageList.add(newId);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
+                    if(!(this.userFunction.equals(UserFunction.TECHNICIAN))) {
+                        VerticalLayout verticalLayout = new VerticalLayout();
+                        verticalLayout.setWidth("100%");
+                        TextArea textArea = new TextArea();
+                        textArea.setWidth("100%");
+                        textArea.setHeight("100%");
+                        textArea.setPlaceholder("Gelieve altijd wat commentaar bij de foto's te plaatsen!");
+                        if(optionalImageEntity.get().getComment() != null) {
+                            textArea.setValue(optionalImageEntity.get().getComment());
                         }
-                    });
-                    layout.add(foto, textArea);
+                        textArea.addValueChangeListener(event -> {
+                            try {
+                                String newId = imageService.updateImageComment(imageId,textArea.getValue());
+                                imageList.remove(imageId);
+                                imageList.add(newId);
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                        Button removeButton = new Button("Verwijder foto");
+                        removeButton.setWidth("100%");
+                        removeButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+                        removeButton.addClickListener(event -> {
+                            confirmDialog.open();
+                            confirmDialog.addConfirmListener(listener -> {
+                                imageList.remove(imageId);
+                                imageService.removeImage(imageId);
+                                this.remove(layout);
+                            });
+                        });
+                        verticalLayout.add(removeButton, textArea);
+                        layout.add(foto, verticalLayout);
+                    }
+                    else{
+                        layout.add(foto);
+                    }
+
                     this.add(layout);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
@@ -101,5 +149,13 @@ public class ShowImageSubVieuw extends VerticalLayout implements BeforeEnterObse
     @Override
     public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
         imageEntityList.clear();
+    }
+
+    public void setUser(UserFunction userFunction) {
+        this.userFunction = userFunction;
+    }
+
+    public void setTitle(String selectedProduct) {
+        this.title.setText(selectedProduct);
     }
 }

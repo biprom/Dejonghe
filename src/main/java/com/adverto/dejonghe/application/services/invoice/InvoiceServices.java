@@ -222,32 +222,32 @@ public class InvoiceServices {
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)) && (workOrderHeader.getWorkType() == WorkType.GENERAL)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                generalHoursOnTheMove = generalHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes()/60.0);
+                                generalHoursOnTheMove = generalHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze())/60.0);
                             }
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE) && (workOrderHeader.getWorkType()) == WorkType.CENTRIFUGE)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                centrifugeHoursOnTheMove = centrifugeHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes()/60.0);
+                                centrifugeHoursOnTheMove = centrifugeHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze())/60.0);
                             }
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE) && (workOrderHeader.getWorkType()) == WorkType.PROGRAMMATIC)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                programHoursOnTheMove = programHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes()/60.0);
+                                programHoursOnTheMove = programHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze())/60.0);
                             }
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE)) && (workOrderHeader.getWorkType() == WorkType.GENERAL)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                generalHoursLocal = generalHoursLocal + (numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes()/60.0));
+                                generalHoursLocal = generalHoursLocal + (numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze())/60.0));
                             }
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE) && (workOrderHeader.getWorkType()) == WorkType.CENTRIFUGE)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                centrifugeHoursLocal = centrifugeHoursLocal + numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes()/60.0);
+                                centrifugeHoursLocal = centrifugeHoursLocal + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze())/60.0);
                             }
                         }
                         if((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE) && (workOrderHeader.getWorkType()) == WorkType.PROGRAMMATIC)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
-                                programHoursLocal = programHoursLocal + numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes()/60.0);
+                                programHoursLocal = programHoursLocal + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze())/60.0);
                             }
                         }
                         i++;
@@ -259,48 +259,54 @@ public class InvoiceServices {
             if(optCustomer.get().getFirst().getBIndustry() == true){
 
                 if(generalHoursLocal > 0){
-                    Product workHourRegularLocalIndustrieProduct = productService.getWorkhourForRegularLocalIndustrie().get();
+                    Product workHourRegularLocalIndustrieProduct = productService.getWorkhourForRegularLocal().get();
                     workHourRegularLocalIndustrieProduct.setSelectedAmount(Double.valueOf(generalHoursLocal));
+                    workHourRegularLocalIndustrieProduct.setTotalPrice(workHourRegularLocalIndustrieProduct.getSellPriceIndustry()*Double.valueOf(generalHoursLocal));
                     workHourRegularLocalIndustrieProduct.setBWorkHour(true);
                     workHourRegularLocalIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourRegularLocalIndustrieProduct);
                 }
 
                 if(centrifugeHoursLocal > 0){
-                    Product workHourCentrifugeLocalIndustrieProduct = productService.getWorkhourForCentrifugeLocalIndustrie().get();
+                    Product workHourCentrifugeLocalIndustrieProduct = productService.getWorkhourForCentrifugeLocal().get();
                     workHourCentrifugeLocalIndustrieProduct.setSelectedAmount(Double.valueOf(centrifugeHoursLocal));
+                    workHourCentrifugeLocalIndustrieProduct.setTotalPrice(workHourCentrifugeLocalIndustrieProduct.getSellPriceIndustry()*Double.valueOf(centrifugeHoursLocal));
                     workHourCentrifugeLocalIndustrieProduct.setBWorkHour(true);
                     workHourCentrifugeLocalIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourCentrifugeLocalIndustrieProduct);
                 }
 
                 if(programHoursLocal > 0){
-                    Product workHourProgramLocalIndustrieProduct = productService.getWorkhourForProgammationLocalIndustrie().get();
+                    Product workHourProgramLocalIndustrieProduct = productService.getWorkhourForProgammationLocal().get();
                     workHourProgramLocalIndustrieProduct.setSelectedAmount(Double.valueOf(programHoursLocal));
+                    workHourProgramLocalIndustrieProduct.setTotalPrice(workHourProgramLocalIndustrieProduct.getSellPriceIndustry()*Double.valueOf(programHoursLocal));
                     workHourProgramLocalIndustrieProduct.setBWorkHour(true);
                     workHourProgramLocalIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourProgramLocalIndustrieProduct);
                 }
 
                 if(generalHoursOnTheMove > 0){
-                    Product workHourRegularOnTheMoveIndustrieProduct = productService.getWorkhourForOnRegularTheMoveIndustrie().get();
+                    Product workHourRegularOnTheMoveIndustrieProduct = productService.getWorkhourForRegularOnTheMove().get();
                     workHourRegularOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(generalHoursOnTheMove));
+                    workHourRegularOnTheMoveIndustrieProduct.setTotalPrice(workHourRegularOnTheMoveIndustrieProduct.getSellPriceIndustry()*Double.valueOf(generalHoursOnTheMove));
                     workHourRegularOnTheMoveIndustrieProduct.setBWorkHour(true);
                     workHourRegularOnTheMoveIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourRegularOnTheMoveIndustrieProduct);
                 }
 
                 if(centrifugeHoursOnTheMove > 0){
-                    Product workHourCentrifugeOnTheMoveIndustrieProduct = productService.getWorkhourForOnCentrifugeTheMoveIndustrie().get();
+                    Product workHourCentrifugeOnTheMoveIndustrieProduct = productService.getWorkhourForCentrifugeOnTheMove().get();
                     workHourCentrifugeOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(centrifugeHoursOnTheMove));
+                    workHourCentrifugeOnTheMoveIndustrieProduct.setTotalPrice(workHourCentrifugeOnTheMoveIndustrieProduct.getSellPriceIndustry()*Double.valueOf(centrifugeHoursOnTheMove));
                     workHourCentrifugeOnTheMoveIndustrieProduct.setBWorkHour(true);
                     workHourCentrifugeOnTheMoveIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourCentrifugeOnTheMoveIndustrieProduct);
                 }
 
                 if(programHoursOnTheMove > 0){
-                    Product workHourProgramOnTheMoveIndustrieProduct = productService.getWorkhourForOnProgammationTheMoveIndustrie().get();
+                    Product workHourProgramOnTheMoveIndustrieProduct = productService.getWorkhourForProgammationOnTheMove().get();
                     workHourProgramOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(programHoursOnTheMove));
+                    workHourProgramOnTheMoveIndustrieProduct.setTotalPrice(workHourProgramOnTheMoveIndustrieProduct.getSellPriceIndustry()*Double.valueOf(programHoursOnTheMove));
                     workHourProgramOnTheMoveIndustrieProduct.setBWorkHour(true);
                     workHourProgramOnTheMoveIndustrieProduct.setTeamNumber(0);
                     allProducts.add(workHourProgramOnTheMoveIndustrieProduct);
@@ -310,47 +316,53 @@ public class InvoiceServices {
 
             else{
                 if(generalHoursLocal > 0){
-                    Product workHourRegularLocalAgroProduct = productService.getWorkhourForRegularLocalAgro().get();
+                    Product workHourRegularLocalAgroProduct = productService.getWorkhourForRegularLocal().get();
                     workHourRegularLocalAgroProduct.setSelectedAmount(Double.valueOf(generalHoursLocal));
+                    workHourRegularLocalAgroProduct.setTotalPrice(workHourRegularLocalAgroProduct.getSellPrice()*Double.valueOf(generalHoursLocal));
                     workHourRegularLocalAgroProduct.setBWorkHour(true);
                     workHourRegularLocalAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourRegularLocalAgroProduct);
                 }
 
                 if(centrifugeHoursLocal > 0){
-                    Product workHourCentrifugeLocalAgroProduct = productService.getWorkhourForCentrifugeLocalAgro().get();
+                    Product workHourCentrifugeLocalAgroProduct = productService.getWorkhourForCentrifugeLocal().get();
                     workHourCentrifugeLocalAgroProduct.setSelectedAmount(Double.valueOf(centrifugeHoursLocal));
+                    workHourCentrifugeLocalAgroProduct.setTotalPrice(workHourCentrifugeLocalAgroProduct.getSellPrice()*Double.valueOf(centrifugeHoursLocal));
                     workHourCentrifugeLocalAgroProduct.setBWorkHour(true);
                     workHourCentrifugeLocalAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourCentrifugeLocalAgroProduct);
                 }
 
                 if(programHoursLocal > 0){
-                    Product workHourProgramLocalAgroProduct = productService.getWorkhourForProgammationLocalAgro().get();
+                    Product workHourProgramLocalAgroProduct = productService.getWorkhourForProgammationLocal().get();
                     workHourProgramLocalAgroProduct.setSelectedAmount(Double.valueOf(programHoursLocal));
+                    workHourProgramLocalAgroProduct.setTotalPrice(workHourProgramLocalAgroProduct.getSellPrice()*Double.valueOf(programHoursLocal));
                     workHourProgramLocalAgroProduct.setBWorkHour(true);
                     workHourProgramLocalAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourProgramLocalAgroProduct);
                 }
                 if(generalHoursOnTheMove > 0){
-                    Product workHourRegularOnTheMoveAgroProduct = productService.getWorkhourForRegularOnTheMoveAgro().get();
+                    Product workHourRegularOnTheMoveAgroProduct = productService.getWorkhourForRegularOnTheMove().get();
                     workHourRegularOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(generalHoursOnTheMove));
+                    workHourRegularOnTheMoveAgroProduct.setTotalPrice(workHourRegularOnTheMoveAgroProduct.getSellPrice()*Double.valueOf(generalHoursOnTheMove));
                     workHourRegularOnTheMoveAgroProduct.setBWorkHour(true);
                     workHourRegularOnTheMoveAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourRegularOnTheMoveAgroProduct);
                 }
 
                 if(centrifugeHoursOnTheMove > 0){
-                    Product workHourCentrifugeOnTheMoveAgroProduct = productService.getWorkhourForCentrifugeOnTheMoveAgro().get();
+                    Product workHourCentrifugeOnTheMoveAgroProduct = productService.getWorkhourForCentrifugeOnTheMove().get();
                     workHourCentrifugeOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(centrifugeHoursOnTheMove));
+                    workHourCentrifugeOnTheMoveAgroProduct.setTotalPrice(workHourCentrifugeOnTheMoveAgroProduct.getSellPrice()*Double.valueOf(centrifugeHoursOnTheMove));
                     workHourCentrifugeOnTheMoveAgroProduct.setBWorkHour(true);
                     workHourCentrifugeOnTheMoveAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourCentrifugeOnTheMoveAgroProduct);
                 }
 
                 if(programHoursOnTheMove > 0){
-                    Product workHourProgramOnTheMoveAgroProduct = productService.getWorkhourForProgammationOnTheMoveAgro().get();
+                    Product workHourProgramOnTheMoveAgroProduct = productService.getWorkhourForProgammationOnTheMove().get();
                     workHourProgramOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(programHoursOnTheMove));
+                    workHourProgramOnTheMoveAgroProduct.setTotalPrice(workHourProgramOnTheMoveAgroProduct.getSellPrice()*Double.valueOf(programHoursOnTheMove));
                     workHourProgramOnTheMoveAgroProduct.setBWorkHour(true);
                     workHourProgramOnTheMoveAgroProduct.setTeamNumber(0);
                     allProducts.add(workHourProgramOnTheMoveAgroProduct);
@@ -367,14 +379,14 @@ public class InvoiceServices {
 
             for(WorkOrder workOrder : workOrderSet) {
                 for (WorkOrderHeader workOrderHeader : workOrder.getWorkOrderHeaderList()) {
-                    if((workAddress.getDistance() != null) && ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.VAN))) ||
-                            ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.ATEGO)))){
+                    if((workAddress.getDistance() != null) && (((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.VAN))) ||
+                            ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.ATEGO))))){
                         amountKmRegular = amountKmRegular + (workAddress.getDistance());
                     }
-                    if((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_TRAILER))){
+                    if((workAddress.getDistance() != null) && (workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_TRAILER))){
                         amountKmTrailer = amountKmTrailer + (workAddress.getDistance());
                     }
-                    if((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_CRANE))){
+                    if((workAddress.getDistance() != null) && (workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_CRANE))){
                         amountKmCrane = amountKmCrane + (workAddress.getDistance());
                         if(workOrderHeader.getFleetWorkType().equals(FleetWorkType.DELIVERY)){
                             amountForfait = ++amountForfait;
@@ -393,43 +405,56 @@ public class InvoiceServices {
 
             if(optCustomer.get().getFirst().getBIndustry() == true){
                 if(amountKmRegular > 0.0){
-                    Product regularKm = productService.getRegularKmIndustry().get();
+                    Product regularKm = productService.getRegularKm().get();
                     regularKm.setSelectedAmount(amountKmRegular);
+                    regularKm.setTotalPrice(amountKmRegular*regularKm.getSellPriceIndustry());
                     regularKm.setBTravel(true);
                     regularKm.setTeamNumber(0);
                     allProducts.add(regularKm);
                 }
                 if(amountKmTrailer > 0.0){
-                    Product trailerKm = productService.getRegularTrailerIndustry().get();
+                    Product forfaitTtrailer = productService.getWorkHoursTrailerForfait().get();
+                    forfaitTtrailer.setSelectedAmount(1.0);
+                    forfaitTtrailer.setTotalPrice(amountKmTrailer*forfaitTtrailer.getSellPriceIndustry());
+                    forfaitTtrailer.setBTravel(true);
+                    forfaitTtrailer.setTeamNumber(0);
+                    allProducts.add(forfaitTtrailer);
+
+                    Product trailerKm = productService.getRegularTrailer().get();
                     trailerKm.setSelectedAmount(amountKmTrailer);
+                    trailerKm.setTotalPrice(amountKmTrailer*trailerKm.getSellPriceIndustry());
                     trailerKm.setBTravel(true);
                     trailerKm.setTeamNumber(0);
                     allProducts.add(trailerKm);
                 }
                 if(amountKmCrane > 0.0){
-                    Product craneKm = productService.getRegularCraneIndustry().get();
+                    Product craneKm = productService.getRegularCrane().get();
                     craneKm.setSelectedAmount(amountKmCrane);
+                    craneKm.setTotalPrice(amountKmCrane*craneKm.getSellPriceIndustry());
                     craneKm.setBTravel(true);
                     craneKm.setTeamNumber(0);
                     allProducts.add(craneKm);
                 }
                 if(amountHoursCraneRegular > 0.0){
-                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegularIndustry().get();
+                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                     hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
+                    hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular*hoursCraneRegularIndustry.getSellPriceIndustry());
                     hoursCraneRegularIndustry.setBTravel(true);
                     hoursCraneRegularIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneRegularIndustry);
                 }
                 if(amountHoursCraneIntens > 0.0){
-                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntenseIndustry().get();
+                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                     hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
+                    hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens*hoursCraneIntenseIndustry.getSellPriceIndustry());
                     hoursCraneIntenseIndustry.setBTravel(true);
                     hoursCraneIntenseIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneIntenseIndustry);
                 }
                 if(amountForfait > 0){
-                    Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfaitIndustry().get();
+                    Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfait().get();
                     hoursCraneForfaitIndustry.setSelectedAmount(Double.valueOf(amountForfait));
+                    hoursCraneForfaitIndustry.setTotalPrice(amountForfait*hoursCraneForfaitIndustry.getSellPriceIndustry());
                     hoursCraneForfaitIndustry.setBTravel(true);
                     hoursCraneForfaitIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneForfaitIndustry);
@@ -437,43 +462,57 @@ public class InvoiceServices {
             }
             else{
                 if(amountKmRegular > 0.0){
-                    Product regularKm = productService.getRegularKmAgro().get();
+                    Product regularKm = productService.getRegularKm().get();
                     regularKm.setSelectedAmount(amountKmRegular);
+                    regularKm.setTotalPrice(amountKmRegular*regularKm.getSellPrice());
                     regularKm.setBTravel(true);
                     regularKm.setTeamNumber(0);
                     allProducts.add(regularKm);
                 }
                 if(amountKmTrailer > 0.0){
-                    Product trailerKm = productService.getRegularTrailerAgro().get();
+
+                    Product forfaitTrailer = productService.getWorkHoursTrailerForfait().get();
+                    forfaitTrailer.setSelectedAmount(1.0);
+                    forfaitTrailer.setTotalPrice(forfaitTrailer.getSellPrice());
+                    forfaitTrailer.setBTravel(true);
+                    forfaitTrailer.setTeamNumber(0);
+                    allProducts.add(forfaitTrailer);
+
+                    Product trailerKm = productService.getRegularTrailer().get();
                     trailerKm.setSelectedAmount(amountKmTrailer);
+                    trailerKm.setTotalPrice(amountKmTrailer*trailerKm.getSellPrice());
                     trailerKm.setBTravel(true);
                     trailerKm.setTeamNumber(0);
                     allProducts.add(trailerKm);
                 }
                 if(amountKmCrane > 0.0){
-                    Product craneKm = productService.getRegularCraneAgro().get();
+                    Product craneKm = productService.getRegularCrane().get();
                     craneKm.setSelectedAmount(amountKmCrane);
+                    craneKm.setTotalPrice(amountKmCrane*craneKm.getSellPrice());
                     craneKm.setBTravel(true);
                     craneKm.setTeamNumber(0);
                     allProducts.add(craneKm);
                 }
                 if(amountHoursCraneRegular > 0.0){
-                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegularAgro().get();
+                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                     hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
+                    hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular*hoursCraneRegularIndustry.getSellPrice());
                     hoursCraneRegularIndustry.setBTravel(true);
                     hoursCraneRegularIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneRegularIndustry);
                 }
                 if(amountHoursCraneIntens > 0.0){
-                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntenseAgro().get();
+                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                     hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
+                    hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens*hoursCraneIntenseIndustry.getSellPrice());
                     hoursCraneIntenseIndustry.setBTravel(true);
                     hoursCraneIntenseIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneIntenseIndustry);
                 }
                 if(amountForfait > 0){
-                    Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfaitAgro().get();
+                    Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfait().get();
                     hoursCraneForfaitIndustry.setSelectedAmount(Double.valueOf(amountForfait));
+                    hoursCraneForfaitIndustry.setTotalPrice(amountForfait*hoursCraneForfaitIndustry.getSellPrice());
                     hoursCraneForfaitIndustry.setBTravel(true);
                     hoursCraneForfaitIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneForfaitIndustry);
@@ -570,6 +609,7 @@ public class InvoiceServices {
                 roadTaxProduct.setSelectedAmount(1.0);
                 roadTaxProduct.setInternalName("Wegentaks");
                 roadTaxProduct.setSellPrice(totalTax);
+                roadTaxProduct.setTotalPrice(1.0 * totalTax);
                 roadTaxProduct.setBTravel(true);
                 roadTaxProduct.setVat(VAT.EENENTWINTIG);
                 roadTaxProduct.setTeamNumber(0);
@@ -581,6 +621,7 @@ public class InvoiceServices {
                 tunnelTaxProduct.setSelectedAmount(1.0);
                 tunnelTaxProduct.setInternalName("tunneltaks");
                 tunnelTaxProduct.setSellPrice(totalTunnelTax);
+                tunnelTaxProduct.setTotalPrice(1.0 * totalTunnelTax);
                 tunnelTaxProduct.setBTravel(true);
                 tunnelTaxProduct.setVat(VAT.EENENTWINTIG);
                 tunnelTaxProduct.setTeamNumber(0);
@@ -593,9 +634,9 @@ public class InvoiceServices {
             allProducts.stream().forEach(product -> product.setDate(starterDateTime.toLocalDate()));
 
             invoice.setProductList(allProducts);
+            checkIfToolsHoursAreSubtractedFromWorkOrder(invoice);
 
         }
-
         return invoice;
     }
 
@@ -705,32 +746,32 @@ public class InvoiceServices {
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)) && (workOrderHeader.getWorkType() == WorkType.GENERAL)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                generalHoursOnTheMove = generalHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes() / 60.0);
+                                generalHoursOnTheMove = generalHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze()) / 60.0);
                             }
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE) && (workOrderHeader.getWorkType()) == WorkType.CENTRIFUGE)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                centrifugeHoursOnTheMove = centrifugeHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes() / 60.0);
+                                centrifugeHoursOnTheMove = centrifugeHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze()) / 60.0);
                             }
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE) && (workOrderHeader.getWorkType()) == WorkType.PROGRAMMATIC)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                programHoursOnTheMove = programHoursOnTheMove + numberOfTechnicians * (Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes() / 60.0);
+                                programHoursOnTheMove = programHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze()) / 60.0);
                             }
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE)) && (workOrderHeader.getWorkType() == WorkType.GENERAL)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                generalHoursLocal = generalHoursLocal + (numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes() / 60.0));
+                                generalHoursLocal = generalHoursLocal + (numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze()) / 60.0));
                             }
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE) && (workOrderHeader.getWorkType()) == WorkType.CENTRIFUGE)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                centrifugeHoursLocal = centrifugeHoursLocal + numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes() / 60.0);
+                                centrifugeHoursLocal = centrifugeHoursLocal + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze()) / 60.0);
                             }
                         }
                         if ((workOrder.getWorkLocation().equals(WorkLocation.WORKPLACE) && (workOrderHeader.getWorkType()) == WorkType.PROGRAMMATIC)) {
                             for (WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()) {
-                                programHoursLocal = programHoursLocal + numberOfTechnicians * (Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes() / 60.0);
+                                programHoursLocal = programHoursLocal + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeStart(), workOrderTime.getTimeStop()).toMinutes())-workOrderTime.getPauze()) / 60.0);
                             }
                         }
                         i++;
@@ -740,8 +781,9 @@ public class InvoiceServices {
                 if (optCustomer.get().getFirst().getBIndustry() == true) {
 
                     if (generalHoursLocal > 0) {
-                        Product workHourRegularLocalIndustrieProduct = productService.getWorkhourForRegularLocalIndustrie().get();
+                        Product workHourRegularLocalIndustrieProduct = productService.getWorkhourForRegularLocal().get();
                         workHourRegularLocalIndustrieProduct.setSelectedAmount(Double.valueOf(generalHoursLocal));
+                        workHourRegularLocalIndustrieProduct.setTotalPrice(Double.valueOf(generalHoursLocal) * workHourRegularLocalIndustrieProduct.getSellPriceIndustry());
                         workHourRegularLocalIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourRegularLocalIndustrieProduct.setBWorkHour(true);
                         workHourRegularLocalIndustrieProduct.setTeamNumber(0);
@@ -749,8 +791,9 @@ public class InvoiceServices {
                     }
 
                     if (centrifugeHoursLocal > 0) {
-                        Product workHourCentrifugeLocalIndustrieProduct = productService.getWorkhourForCentrifugeLocalIndustrie().get();
+                        Product workHourCentrifugeLocalIndustrieProduct = productService.getWorkhourForCentrifugeLocal().get();
                         workHourCentrifugeLocalIndustrieProduct.setSelectedAmount(Double.valueOf(centrifugeHoursLocal));
+                        workHourCentrifugeLocalIndustrieProduct.setTotalPrice(Double.valueOf(centrifugeHoursLocal) * workHourCentrifugeLocalIndustrieProduct.getSellPriceIndustry());
                         workHourCentrifugeLocalIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourCentrifugeLocalIndustrieProduct.setBWorkHour(true);
                         workHourCentrifugeLocalIndustrieProduct.setTeamNumber(0);
@@ -758,8 +801,9 @@ public class InvoiceServices {
                     }
 
                     if (programHoursLocal > 0) {
-                        Product workHourProgramLocalIndustrieProduct = productService.getWorkhourForProgammationLocalIndustrie().get();
+                        Product workHourProgramLocalIndustrieProduct = productService.getWorkhourForProgammationLocal().get();
                         workHourProgramLocalIndustrieProduct.setSelectedAmount(Double.valueOf(programHoursLocal));
+                        workHourProgramLocalIndustrieProduct.setTotalPrice(Double.valueOf(programHoursLocal) * workHourProgramLocalIndustrieProduct.getSellPriceIndustry());
                         workHourProgramLocalIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourProgramLocalIndustrieProduct.setBWorkHour(true);
                         workHourProgramLocalIndustrieProduct.setTeamNumber(0);
@@ -767,8 +811,9 @@ public class InvoiceServices {
                     }
 
                     if (generalHoursOnTheMove > 0) {
-                        Product workHourRegularOnTheMoveIndustrieProduct = productService.getWorkhourForOnRegularTheMoveIndustrie().get();
+                        Product workHourRegularOnTheMoveIndustrieProduct = productService.getWorkhourForRegularOnTheMove().get();
                         workHourRegularOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(generalHoursOnTheMove));
+                        workHourRegularOnTheMoveIndustrieProduct.setTotalPrice(Double.valueOf(generalHoursOnTheMove) * workHourRegularOnTheMoveIndustrieProduct.getSellPriceIndustry());
                         workHourRegularOnTheMoveIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourRegularOnTheMoveIndustrieProduct.setBWorkHour(true);
                         workHourRegularOnTheMoveIndustrieProduct.setTeamNumber(0);
@@ -776,8 +821,9 @@ public class InvoiceServices {
                     }
 
                     if (centrifugeHoursOnTheMove > 0) {
-                        Product workHourCentrifugeOnTheMoveIndustrieProduct = productService.getWorkhourForOnCentrifugeTheMoveIndustrie().get();
+                        Product workHourCentrifugeOnTheMoveIndustrieProduct = productService.getWorkhourForCentrifugeOnTheMove().get();
                         workHourCentrifugeOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(centrifugeHoursOnTheMove));
+                        workHourCentrifugeOnTheMoveIndustrieProduct.setTotalPrice(Double.valueOf(centrifugeHoursOnTheMove) * workHourCentrifugeOnTheMoveIndustrieProduct.getSellPriceIndustry());
                         workHourCentrifugeOnTheMoveIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourCentrifugeOnTheMoveIndustrieProduct.setBWorkHour(true);
                         workHourCentrifugeOnTheMoveIndustrieProduct.setTeamNumber(0);
@@ -785,8 +831,9 @@ public class InvoiceServices {
                     }
 
                     if (programHoursOnTheMove > 0) {
-                        Product workHourProgramOnTheMoveIndustrieProduct = productService.getWorkhourForOnProgammationTheMoveIndustrie().get();
+                        Product workHourProgramOnTheMoveIndustrieProduct = productService.getWorkhourForProgammationOnTheMove().get();
                         workHourProgramOnTheMoveIndustrieProduct.setSelectedAmount(Double.valueOf(programHoursOnTheMove));
+                        workHourProgramOnTheMoveIndustrieProduct.setTotalPrice(Double.valueOf(programHoursOnTheMove) * workHourProgramOnTheMoveIndustrieProduct.getSellPriceIndustry());
                         workHourProgramOnTheMoveIndustrieProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourProgramOnTheMoveIndustrieProduct.setBWorkHour(true);
                         workHourProgramOnTheMoveIndustrieProduct.setTeamNumber(0);
@@ -795,8 +842,9 @@ public class InvoiceServices {
 
                 } else {
                     if (generalHoursLocal > 0) {
-                        Product workHourRegularLocalAgroProduct = productService.getWorkhourForRegularLocalAgro().get();
+                        Product workHourRegularLocalAgroProduct = productService.getWorkhourForRegularLocal().get();
                         workHourRegularLocalAgroProduct.setSelectedAmount(Double.valueOf(generalHoursLocal));
+                        workHourRegularLocalAgroProduct.setTotalPrice(Double.valueOf(generalHoursLocal) * workHourRegularLocalAgroProduct.getSellPrice());
                         workHourRegularLocalAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourRegularLocalAgroProduct.setBWorkHour(true);
                         workHourRegularLocalAgroProduct.setTeamNumber(0);
@@ -804,8 +852,9 @@ public class InvoiceServices {
                     }
 
                     if (centrifugeHoursLocal > 0) {
-                        Product workHourCentrifugeLocalAgroProduct = productService.getWorkhourForCentrifugeLocalAgro().get();
+                        Product workHourCentrifugeLocalAgroProduct = productService.getWorkhourForCentrifugeLocal().get();
                         workHourCentrifugeLocalAgroProduct.setSelectedAmount(Double.valueOf(centrifugeHoursLocal));
+                        workHourCentrifugeLocalAgroProduct.setTotalPrice(Double.valueOf(centrifugeHoursLocal) * workHourCentrifugeLocalAgroProduct.getSellPrice());
                         workHourCentrifugeLocalAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourCentrifugeLocalAgroProduct.setBWorkHour(true);
                         workHourCentrifugeLocalAgroProduct.setTeamNumber(0);
@@ -813,16 +862,18 @@ public class InvoiceServices {
                     }
 
                     if (programHoursLocal > 0) {
-                        Product workHourProgramLocalAgroProduct = productService.getWorkhourForProgammationLocalAgro().get();
+                        Product workHourProgramLocalAgroProduct = productService.getWorkhourForProgammationLocal().get();
                         workHourProgramLocalAgroProduct.setSelectedAmount(Double.valueOf(programHoursLocal));
+                        workHourProgramLocalAgroProduct.setTotalPrice(Double.valueOf(programHoursLocal) * workHourProgramLocalAgroProduct.getSellPrice());
                         workHourProgramLocalAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourProgramLocalAgroProduct.setBWorkHour(true);
                         workHourProgramLocalAgroProduct.setTeamNumber(0);
                         allProducts.add(workHourProgramLocalAgroProduct);
                     }
                     if (generalHoursOnTheMove > 0) {
-                        Product workHourRegularOnTheMoveAgroProduct = productService.getWorkhourForRegularOnTheMoveAgro().get();
+                        Product workHourRegularOnTheMoveAgroProduct = productService.getWorkhourForRegularOnTheMove().get();
                         workHourRegularOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(generalHoursOnTheMove));
+                        workHourRegularOnTheMoveAgroProduct.setTotalPrice(Double.valueOf(generalHoursOnTheMove) * workHourRegularOnTheMoveAgroProduct.getSellPrice());
                         workHourRegularOnTheMoveAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourRegularOnTheMoveAgroProduct.setBWorkHour(true);
                         workHourRegularOnTheMoveAgroProduct.setTeamNumber(0);
@@ -830,8 +881,9 @@ public class InvoiceServices {
                     }
 
                     if (centrifugeHoursOnTheMove > 0) {
-                        Product workHourCentrifugeOnTheMoveAgroProduct = productService.getWorkhourForCentrifugeOnTheMoveAgro().get();
+                        Product workHourCentrifugeOnTheMoveAgroProduct = productService.getWorkhourForCentrifugeOnTheMove().get();
                         workHourCentrifugeOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(centrifugeHoursOnTheMove));
+                        workHourCentrifugeOnTheMoveAgroProduct.setTotalPrice(Double.valueOf(centrifugeHoursOnTheMove) * workHourCentrifugeOnTheMoveAgroProduct.getSellPrice());
                         workHourCentrifugeOnTheMoveAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourCentrifugeOnTheMoveAgroProduct.setBWorkHour(true);
                         workHourCentrifugeOnTheMoveAgroProduct.setTeamNumber(0);
@@ -839,8 +891,9 @@ public class InvoiceServices {
                     }
 
                     if (programHoursOnTheMove > 0) {
-                        Product workHourProgramOnTheMoveAgroProduct = productService.getWorkhourForProgammationOnTheMoveAgro().get();
+                        Product workHourProgramOnTheMoveAgroProduct = productService.getWorkhourForProgammationOnTheMove().get();
                         workHourProgramOnTheMoveAgroProduct.setSelectedAmount(Double.valueOf(programHoursOnTheMove));
+                        workHourProgramOnTheMoveAgroProduct.setTotalPrice(Double.valueOf(programHoursOnTheMove) * workHourProgramOnTheMoveAgroProduct.getSellPrice());
                         workHourProgramOnTheMoveAgroProduct.setDate(workOrder.getWorkDateTime().toLocalDate());
                         workHourProgramOnTheMoveAgroProduct.setBWorkHour(true);
                         workHourProgramOnTheMoveAgroProduct.setTeamNumber(0);
@@ -884,48 +937,63 @@ public class InvoiceServices {
 
                 if (optCustomer.get().getFirst().getBIndustry() == true) {
                     if (amountKmRegular > 0.0) {
-                        Product regularKm = productService.getRegularKmIndustry().get();
+                        Product regularKm = productService.getRegularKm().get();
                         regularKm.setSelectedAmount(amountKmRegular);
+                        regularKm.setTotalPrice(amountKmRegular * regularKm.getSellPriceIndustry());
                         regularKm.setTeamNumber(0);
                         regularKm.setBTravel(true);
                         regularKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(regularKm);
                     }
                     if (amountKmTrailer > 0.0) {
-                        Product trailerKm = productService.getRegularTrailerIndustry().get();
+
+                        Product forfaitTrailer = productService.getWorkHoursTrailerForfait().get();
+                        forfaitTrailer.setSelectedAmount(amountKmTrailer);
+                        forfaitTrailer.setTotalPrice(forfaitTrailer.getSellPriceIndustry());
+                        forfaitTrailer.setTeamNumber(0);
+                        forfaitTrailer.setBTravel(true);
+                        forfaitTrailer.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(forfaitTrailer);
+
+                        Product trailerKm = productService.getRegularTrailer().get();
                         trailerKm.setSelectedAmount(amountKmTrailer);
+                        trailerKm.setTotalPrice(amountKmTrailer * trailerKm.getSellPriceIndustry());
                         trailerKm.setTeamNumber(0);
                         trailerKm.setBTravel(true);
                         trailerKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(trailerKm);
                     }
                     if (amountKmCrane > 0.0) {
-                        Product craneKm = productService.getRegularCraneIndustry().get();
+                        Product craneKm = productService.getRegularCrane().get();
                         craneKm.setSelectedAmount(amountKmCrane);
+                        craneKm.setTotalPrice(amountKmCrane * craneKm.getSellPriceIndustry());
                         craneKm.setTeamNumber(0);
                         craneKm.setBTravel(true);
                         craneKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(craneKm);
                     }
                     if (amountHoursCraneRegular > 0.0) {
-                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegularIndustry().get();
+                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                         hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
+                        hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular * hoursCraneRegularIndustry.getSellPriceIndustry());
                         hoursCraneRegularIndustry.setTeamNumber(0);
                         hoursCraneRegularIndustry.setBTravel(true);
                         hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneRegularIndustry);
                     }
                     if (amountHoursCraneIntens > 0.0) {
-                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntenseIndustry().get();
+                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                         hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
+                        hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens * hoursCraneIntenseIndustry.getSellPriceIndustry());
                         hoursCraneIntenseIndustry.setTeamNumber(0);
                         hoursCraneIntenseIndustry.setBTravel(true);
                         hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneIntenseIndustry);
                     }
                     if (amountForfait > 0) {
-                        Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfaitIndustry().get();
+                        Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfait().get();
                         hoursCraneForfaitIndustry.setSelectedAmount(Double.valueOf(amountForfait));
+                        hoursCraneForfaitIndustry.setTotalPrice(amountForfait * hoursCraneForfaitIndustry.getSellPriceIndustry());
                         hoursCraneForfaitIndustry.setTeamNumber(0);
                         hoursCraneForfaitIndustry.setBTravel(true);
                         hoursCraneForfaitIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
@@ -933,48 +1001,64 @@ public class InvoiceServices {
                     }
                 } else {
                     if (amountKmRegular > 0.0) {
-                        Product regularKm = productService.getRegularKmAgro().get();
+                        Product regularKm = productService.getRegularKm().get();
                         regularKm.setSelectedAmount(amountKmRegular);
+                        regularKm.setTotalPrice(amountKmRegular * regularKm.getSellPrice());
                         regularKm.setTeamNumber(0);
                         regularKm.setBTravel(true);
                         regularKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(regularKm);
                     }
                     if (amountKmTrailer > 0.0) {
-                        Product trailerKm = productService.getRegularTrailerAgro().get();
+
+                        Product forfaitTrailer = productService.getWorkHoursTrailerForfait().get();
+                        forfaitTrailer.setSelectedAmount(amountKmTrailer);
+                        forfaitTrailer.setTotalPrice(forfaitTrailer.getSellPrice());
+                        forfaitTrailer.setTeamNumber(0);
+                        forfaitTrailer.setBTravel(true);
+                        forfaitTrailer.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(forfaitTrailer);
+
+
+                        Product trailerKm = productService.getRegularTrailer().get();
                         trailerKm.setSelectedAmount(amountKmTrailer);
+                        trailerKm.setTotalPrice(amountKmTrailer * trailerKm.getSellPrice());
                         trailerKm.setTeamNumber(0);
                         trailerKm.setBTravel(true);
                         trailerKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(trailerKm);
                     }
                     if (amountKmCrane > 0.0) {
-                        Product craneKm = productService.getRegularCraneAgro().get();
+                        Product craneKm = productService.getRegularCrane().get();
                         craneKm.setSelectedAmount(amountKmCrane);
+                        craneKm.setTotalPrice(amountKmCrane * craneKm.getSellPrice());
                         craneKm.setTeamNumber(0);
                         craneKm.setBTravel(true);
                         craneKm.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(craneKm);
                     }
                     if (amountHoursCraneRegular > 0.0) {
-                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegularAgro().get();
+                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                         hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
+                        hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular * hoursCraneRegularIndustry.getSellPrice());
                         hoursCraneRegularIndustry.setTeamNumber(0);
                         hoursCraneRegularIndustry.setBTravel(true);
                         hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneRegularIndustry);
                     }
                     if (amountHoursCraneIntens > 0.0) {
-                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntenseAgro().get();
+                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                         hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
+                        hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens * hoursCraneIntenseIndustry.getSellPrice());
                         hoursCraneIntenseIndustry.setTeamNumber(0);
                         hoursCraneIntenseIndustry.setBTravel(true);
                         hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneIntenseIndustry);
                     }
                     if (amountForfait > 0) {
-                        Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfaitAgro().get();
+                        Product hoursCraneForfaitIndustry = productService.getWorkHoursCraneForfait().get();
                         hoursCraneForfaitIndustry.setSelectedAmount(Double.valueOf(amountForfait));
+                        hoursCraneForfaitIndustry.setTotalPrice(amountForfait * hoursCraneForfaitIndustry.getSellPrice());
                         hoursCraneForfaitIndustry.setTeamNumber(0);
                         hoursCraneForfaitIndustry.setBTravel(true);
                         hoursCraneForfaitIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
@@ -1061,6 +1145,7 @@ public class InvoiceServices {
                     roadTaxProduct.setSelectedAmount(1.0);
                     roadTaxProduct.setInternalName("Wegentaks");
                     roadTaxProduct.setSellPrice(totalTax);
+                    roadTaxProduct.setTotalPrice(1.0 * totalTax);
                     roadTaxProduct.setBTravel(true);
                     roadTaxProduct.setVat(VAT.EENENTWINTIG);
                     roadTaxProduct.setTeamNumber(0);
@@ -1073,6 +1158,7 @@ public class InvoiceServices {
                     tunnelTaxProduct.setSelectedAmount(1.0);
                     tunnelTaxProduct.setInternalName("tunneltaks");
                     tunnelTaxProduct.setSellPrice(totalTunnelTax);
+                    tunnelTaxProduct.setTotalPrice(1.0 * totalTunnelTax);
                     tunnelTaxProduct.setBTravel(true);
                     tunnelTaxProduct.setVat(VAT.EENENTWINTIG);
                     tunnelTaxProduct.setTeamNumber(0);
@@ -1089,6 +1175,7 @@ public class InvoiceServices {
 
                 invoice.setProductList(allProducts);
 
+                checkIfToolsHoursAreSubtractedFromWorkOrder(invoice);
             }
         }
         return invoice;
@@ -1390,5 +1477,216 @@ public class InvoiceServices {
         //now show it in a new tab in the browser
         attachementNames.add("attachement_"+ attachementNumber+".pdf");
         pdfController.setAttachementNames(attachementNames);
+    }
+
+    public void checkIfToolsHoursAreSubtractedFromWorkOrder(Invoice selectedInvoice){
+        if((selectedInvoice != null) && (selectedInvoice.getProductList() != null)){
+            if(selectedInvoice.getProductList().size() > 0){
+
+                Optional<Product> optWorkHoursProduct = selectedInvoice.getProductList().stream().filter(product -> (product.getProductCode().contains("WU")) && (product.getBWorkHour() == true)).findFirst();
+
+                List<Product> laserListToSubtract = selectedInvoice.getProductList().stream().filter(product -> product.getProductCode().matches("OPAT-laser")).collect(Collectors.toList());
+                List<Product> bendListToSubtract = selectedInvoice.getProductList().stream().filter(product -> product.getProductCode().matches("OPAT-plooi")).collect(Collectors.toList());
+                List<Product> laserbendListToSubtract = selectedInvoice.getProductList().stream().filter(product -> product.getProductCode().matches("OPAT-laser-plooi")).collect(Collectors.toList());
+                List<Product> cncToSubtract = selectedInvoice.getProductList().stream().filter(product -> product.getProductCode().matches("OPAT-dr-fr")).collect(Collectors.toList());
+                List<Product> cncCuttingListToSubtract = selectedInvoice.getProductList().stream().filter(product -> product.getProductCode().matches("OPAT-cncsn")).collect(Collectors.toList());
+
+
+                if((laserListToSubtract != null) && (laserListToSubtract.size() > 0)){
+                    Double totalLaserMinutesToSubtract = laserListToSubtract.stream()
+                            .mapToDouble(item -> item.getSelectedAmount())
+                            .sum();
+
+//                    Product productToAdd = productService.findByProductCodeEqualCaseInsensitive("OPAT-laser").get().getFirst();
+//                    productToAdd.setSelectedAmount(totalLaserMinutesToSubtract);
+
+//                    productToAdd.setVat(VAT.EENENTWINTIG);
+//                    productToAdd.setBWorkHour(true);
+//                    selectedInvoice.getProductList().remove(laserListToSubtract);
+//                    selectedInvoice.getProductList().add(productToAdd);
+
+                    if((optWorkHoursProduct.isPresent()) && (!optWorkHoursProduct.isEmpty())){
+                        Double correctedAmountWorkedHours = optWorkHoursProduct.get().getSelectedAmount() - totalLaserMinutesToSubtract;
+                        optWorkHoursProduct.get().setSelectedAmount(correctedAmountWorkedHours);
+                        if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+                            if(optWorkHoursProduct.get().getSellPriceIndustry() > 0.0){
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPriceIndustry());
+                            }
+                            else{
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                            }
+                        }
+                        else{
+                            optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                        }
+                    }
+                }
+
+                if((bendListToSubtract != null) && (bendListToSubtract.size() > 0)){
+                    Double totalBendMinutesToSubtract = laserListToSubtract.stream()
+                            .mapToDouble(item -> item.getSelectedAmount())
+                            .sum();
+
+//                    Product productToAdd = productService.findByProductCodeEqualCaseInsensitive("OPAT-plooi").get().getFirst();
+//                    productToAdd.setSelectedAmount(totalBendMinutesToSubtract);
+//                    if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+//                        if(productToAdd.getSellPriceIndustry() > 0.0){
+//                            productToAdd.setTotalPrice(totalBendMinutesToSubtract * productToAdd.getSellPriceIndustry());
+//                        }
+//                        else{
+//                            productToAdd.setTotalPrice(totalBendMinutesToSubtract * productToAdd.getSellPrice());
+//                        }
+//                    }
+//                    else{
+//                        productToAdd.setTotalPrice(totalBendMinutesToSubtract * productToAdd.getSellPrice());
+//                    }
+//                    productToAdd.setVat(VAT.EENENTWINTIG);
+//                    productToAdd.setBWorkHour(true);
+//                    selectedInvoice.getProductList().remove(bendListToSubtract);
+//                    selectedInvoice.getProductList().add(productToAdd);
+
+                    if((optWorkHoursProduct.isPresent()) && (!optWorkHoursProduct.isEmpty())){
+                        Double correctedAmountWorkedHours = optWorkHoursProduct.get().getSelectedAmount() - totalBendMinutesToSubtract;
+                        optWorkHoursProduct.get().setSelectedAmount(correctedAmountWorkedHours);
+
+                        if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+                            if(optWorkHoursProduct.get().getSellPriceIndustry() > 0.0){
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPriceIndustry());
+                            }
+                            else{
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                            }
+                        }
+                        else{
+                            optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                        }
+                    }
+                }
+
+                if((laserbendListToSubtract != null) && (laserbendListToSubtract.size() > 0)){
+                    Double totalLaserBendMinutesToSubtract = laserListToSubtract.stream()
+                            .mapToDouble(item -> item.getSelectedAmount())
+                            .sum();
+
+//                    Product productToAdd = productService.findByProductCodeEqualCaseInsensitive("OPAT-laser-plooi").get().getFirst();
+//                    productToAdd.setSelectedAmount(totalLaserBendMinutesToSubtract);
+//                    if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+//                        if(productToAdd.getSellPriceIndustry() > 0.0){
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPriceIndustry());
+//                        }
+//                        else{
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                        }
+//                    }
+//                    else{
+//                        productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                    }
+//                    productToAdd.setVat(VAT.EENENTWINTIG);
+//                    productToAdd.setBWorkHour(true);
+//                    selectedInvoice.getProductList().remove(laserbendListToSubtract);
+//                    selectedInvoice.getProductList().add(productToAdd);
+
+                    if((optWorkHoursProduct.isPresent()) && (!optWorkHoursProduct.isEmpty())){
+                        Double correctedAmountWorkedHours = optWorkHoursProduct.get().getSelectedAmount() - totalLaserBendMinutesToSubtract;
+                        optWorkHoursProduct.get().setSelectedAmount(correctedAmountWorkedHours);
+
+                        if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+                            if(optWorkHoursProduct.get().getSellPriceIndustry() > 0.0){
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPriceIndustry());
+                            }
+                            else{
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                            }
+                        }
+                        else{
+                            optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                        }
+                    }
+                }
+
+                if((cncToSubtract != null) && (cncToSubtract.size() > 0)){
+                    Double totalCncMinutesToSubtract = cncToSubtract.stream()
+                            .mapToDouble(item -> item.getSelectedAmount())
+                            .sum();
+
+//                    Product productToAdd = productService.findByProductCodeEqualCaseInsensitive("OPAT-laser-plooi").get().getFirst();
+//                    productToAdd.setSelectedAmount(totalLaserBendMinutesToSubtract);
+//                    if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+//                        if(productToAdd.getSellPriceIndustry() > 0.0){
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPriceIndustry());
+//                        }
+//                        else{
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                        }
+//                    }
+//                    else{
+//                        productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                    }
+//                    productToAdd.setVat(VAT.EENENTWINTIG);
+//                    productToAdd.setBWorkHour(true);
+//                    selectedInvoice.getProductList().remove(laserbendListToSubtract);
+//                    selectedInvoice.getProductList().add(productToAdd);
+
+                    if((optWorkHoursProduct.isPresent()) && (!optWorkHoursProduct.isEmpty())){
+                        Double correctedAmountWorkedHours = optWorkHoursProduct.get().getSelectedAmount() - totalCncMinutesToSubtract;
+                        optWorkHoursProduct.get().setSelectedAmount(correctedAmountWorkedHours);
+
+                        if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+                            if(optWorkHoursProduct.get().getSellPriceIndustry() > 0.0){
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPriceIndustry());
+                            }
+                            else{
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                            }
+                        }
+                        else{
+                            optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                        }
+
+                    }
+                }
+
+                if((cncCuttingListToSubtract != null) && (cncCuttingListToSubtract.size() > 0)){
+                    Double totalCncCuttingMinutesToSubtract = cncCuttingListToSubtract.stream()
+                            .mapToDouble(item -> item.getSelectedAmount())
+                            .sum();
+
+//                    Product productToAdd = productService.findByProductCodeEqualCaseInsensitive("OPAT-laser-plooi").get().getFirst();
+//                    productToAdd.setSelectedAmount(totalLaserBendMinutesToSubtract);
+//                    if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+//                        if(productToAdd.getSellPriceIndustry() > 0.0){
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPriceIndustry());
+//                        }
+//                        else{
+//                            productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                        }
+//                    }
+//                    else{
+//                        productToAdd.setTotalPrice(totalLaserBendMinutesToSubtract * productToAdd.getSellPrice());
+//                    }
+//                    productToAdd.setVat(VAT.EENENTWINTIG);
+//                    productToAdd.setBWorkHour(true);
+//                    selectedInvoice.getProductList().remove(laserbendListToSubtract);
+//                    selectedInvoice.getProductList().add(productToAdd);
+
+                    if((optWorkHoursProduct.isPresent()) && (!optWorkHoursProduct.isEmpty())){
+                        Double correctedAmountWorkedHours = optWorkHoursProduct.get().getSelectedAmount() - totalCncCuttingMinutesToSubtract;
+                        optWorkHoursProduct.get().setSelectedAmount(correctedAmountWorkedHours);
+
+                        if((selectedInvoice.getCustomer().getBIndustry()!= null) && (selectedInvoice.getCustomer().getBIndustry() == true)){
+                            if(optWorkHoursProduct.get().getSellPriceIndustry() > 0.0){
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPriceIndustry());
+                            }
+                            else{
+                                optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                            }
+                        }
+                        else{
+                            optWorkHoursProduct.get().setTotalPrice(correctedAmountWorkedHours * optWorkHoursProduct.get().getSellPrice());
+                        }
+                    }
+                }
+            }
+        }
     }
 }
