@@ -29,7 +29,7 @@ public class WorkOrderTime {
     LocalTime timeDown;
     LocalTime timeStart;
     LocalTime timeStop;
-    Integer pauze;
+    Integer pauze = 0;
     Boolean bOvernight;
 
 }

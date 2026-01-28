@@ -20,10 +20,10 @@ import java.util.Optional;
 
 @SpringBootTest
 class Tests{
-
     CustomerImportRepo customerImportRepo;
     CustomerService customerService;
     GoogleRestController googleRestController;
+
     @Autowired
     private ProductService productService;
 
@@ -35,6 +35,8 @@ class Tests{
         this.customerService = customerService;
         this.googleRestController = googleRestController;
     }
+
+
 
     @Test
     void copyCommenArtNumbersPurchasePrice() {
@@ -55,9 +57,6 @@ class Tests{
                             }
                             if(optInternalName.isPresent()){
                                 commonProduct.setInternalName(optInternalName.get().getInternalName());
-                            }
-                            if(optComment.isPresent()){
-                                commonProduct.setComment(optComment.get().getComment());
                             }
                             productService.save(commonProduct);
                             System.out.println(i + " " +commonProduct.getProductCode() + " " + commonProduct.getPurchasePrice() + " " + commonProduct.getSellMargin() + " " + commonProduct.getSellPrice());

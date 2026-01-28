@@ -3,7 +3,8 @@ package com.adverto.dejonghe.application.entities.enums.workorder;
 public enum WorkType {
     GENERAL ("Algemeen"),
     CENTRIFUGE   ("Centrifuge"),
-    PROGRAMMATIC ("Programmatie"),;
+    PROGRAMMATIC ("Programmatie"),
+    PICKUP ("Afhaling");
 
     private final String discription;
 

@@ -1,11 +1,11 @@
 package com.adverto.dejonghe.application.implementations;
 
+import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import net.sf.jasperreports.engine.JRDataSource;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JRField;
 
-import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -14,18 +14,29 @@ import java.util.Locale;
 
 public class DataImplementation implements JRDataSource {
 
-    DecimalFormat df = new DecimalFormat("0.00");
+    //DecimalFormat df = new DecimalFormat("0.00");
     NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.FRANCE);
     DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private int lastFiledAdded;
     private HashMap<String, Integer>fieldsNumber = new HashMap<>(  );
     List<Product>products;
+    Customer selectedCustomer;
+    NumberFormat df = NumberFormat.getNumberInstance(new Locale("nl", "BE"));
 
-    public DataImplementation(List<Product>products) {
-
+    public DataImplementation(List<Product>products, Customer selectedCustomer) {
+        setUpNumberFormat();
         this.products = products;
+        this.selectedCustomer = selectedCustomer;
+
         lastFiledAdded = products.size() ;
 
+
+    }
+
+    private void setUpNumberFormat() {
+        df.setMinimumFractionDigits(2);
+        df.setMaximumFractionDigits(2);
+        df.setGroupingUsed(true);
     }
 
     @Override
@@ -41,8 +52,8 @@ public class DataImplementation implements JRDataSource {
     public Object getFieldValue(JRField jrField) throws JRException {
         if (jrField.getName().equals("Datum")) {
             try{
-                if((products.get(lastFiledAdded).getShowDate()) && (products.get(lastFiledAdded).getDate() != null)){
-                    return products.get(lastFiledAdded).getDate().format(dateTimeFormatter).toString();
+                if((products.get(lastFiledAdded).getDateToShowOnInvoice() != null)){
+                    return products.get(lastFiledAdded).getDateToShowOnInvoice();
                 }
                 else{
                     return null;
@@ -69,15 +80,35 @@ public class DataImplementation implements JRDataSource {
                 return null;
             }
         } else if (jrField.getName().equals("Eenheidsprijs")) {
+
             try{
-                if(products.get(lastFiledAdded).getSellPrice() != null){
-                    if(products.get(lastFiledAdded).getSellPrice().equals(0.0)){
-                        return null;
+                if(selectedCustomer.getBAgro()){
+                    if(products.get(lastFiledAdded).getSellPrice() != null){
+                        if(products.get(lastFiledAdded).getSellPrice().equals(0.0)){
+                            return null;
+                        }
+                        return df.format(products.get(lastFiledAdded).getSellPrice() ) + "€";
                     }
-                    return String.format("%.2f", products.get(lastFiledAdded).getSellPrice() ) + "€";
+                    else{
+                        return "";
+                    }
                 }
                 else{
-                    return "";
+                    if(products.get(lastFiledAdded).getSellPriceIndustry() != null){
+                        if(products.get(lastFiledAdded).getSellPriceIndustry().equals(0.0)){
+                            if(products.get(lastFiledAdded).getSellPrice().equals(0.0)){
+                                return null;
+                            }
+                            return df.format(products.get(lastFiledAdded).getSellPrice() ) + "€";
+                        }
+                        return df.format(products.get(lastFiledAdded).getSellPriceIndustry() ) + "€";
+                    }
+                    else{
+                        if(products.get(lastFiledAdded).getSellPrice().equals(0.0)){
+                            return null;
+                        }
+                        return df.format(products.get(lastFiledAdded).getSellPrice() ) + "€";
+                    }
                 }
             }
             catch (Exception e){
@@ -103,7 +134,6 @@ public class DataImplementation implements JRDataSource {
             else {
                 return null;
             }
-
         }
         return "";
     }

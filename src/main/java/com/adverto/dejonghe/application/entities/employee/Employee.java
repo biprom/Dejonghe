@@ -22,6 +22,7 @@ public class Employee {
     private String abbreviation;
     private String phoneNumber;
     private String comment;
+    private Boolean technician = false;
     private Boolean alert = false;
     private String alertMessage;
     private LocalDate birthDate;

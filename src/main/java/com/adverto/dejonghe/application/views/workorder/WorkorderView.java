@@ -204,6 +204,10 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     VirtualList<Tools> toolsVirtualList;
 
     Optional<List<Customer>> customerByWorkAddress;
+    HorizontalLayout horizontalLayoutLevel6;
+
+    double proposalAmountHoursCrane;
+
 
     public WorkorderView(ProductService productService,
                          CustomerService customerService,
@@ -577,8 +581,15 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         workOrderTimeGrid.addComponentColumn(item -> {
             ComboBox<Integer> cbPauze = new ComboBox();
             cbPauze.setItems(0,15,30,45,60);
+            cbPauze.setClearButtonVisible(false);
+            cbPauze.setAllowCustomValue(false);
             cbPauze.setWidth("100%");
-            cbPauze.setValue(item.getPauze());
+            if(item.getPauze() != null) {
+                cbPauze.setValue(item.getPauze());
+            }
+            else{
+                cbPauze.setValue(0);
+            }
             cbPauze.addValueChangeListener(event -> {
                 try {
                     item.setPauze(event.getValue());
@@ -638,8 +649,11 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     item.setTimeDown(timeDownPicker.getValue());
                     selectedWorkOrder.getWorkOrderHeaderList().get(selectedTeam-1).setWorkOrderTimeList(selectedWorkOrderTimes);
                     try{
-                        long hours = ChronoUnit.HOURS.between(item.getTimeUp(), item.getTimeDown());
-                        tfFleetHours.setPlaceholder(String.valueOf(hours));
+                        Duration duration = Duration.between(item.getTimeUp(), item.getTimeDown());
+                        long hours = duration.toHours();
+                        long minutes = duration.toMinutes() % 60; // Minuten zonder de uren
+                        proposalAmountHoursCrane = hours + minutes / 60.0;
+                        tfFleetHours.setPlaceholder(String.valueOf(proposalAmountHoursCrane));
                     }
                     catch (Exception e){
                     }
@@ -853,17 +867,20 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         finishWorkOrderDialog.addOpenedChangeListener(listener -> {
             errorList = workOrderServices.checkWorkOrderBeforeSendToInvoice(selectedWorkOrder, errorList);
             if(errorList.size() > 0){
-                errorDialogErrorsVerticalLayout.removeAll();
-                for(String error : errorList){
-                    Button button = new Button(error);
-                    button.addThemeVariants(ButtonVariant.LUMO_ERROR);
-                    button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-                    errorDialogErrorsVerticalLayout.add(button);
+                //TODO check if it is a pickup or not -> workhours doesn't need to be filled in
+                if(!selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkType().equals(WorkType.PICKUP)){
+                    errorDialogErrorsVerticalLayout.removeAll();
+                    for(String error : errorList){
+                        Button button = new Button(error);
+                        button.addThemeVariants(ButtonVariant.LUMO_ERROR);
+                        button.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+                        errorDialogErrorsVerticalLayout.add(button);
+                    }
+                    finishWorkOrderDialog.close();
                 }
-                finishWorkOrderDialog.close();
             }
             if (listener.isOpened()){
-                if(errorList.isEmpty()) {
+                if((errorList.isEmpty())|| (selectedWorkOrder.getWorkOrderHeaderList().get(0).getWorkType().equals(WorkType.PICKUP))) {
                     saveButton.setEnabled(true);
                 }
                 else{
@@ -1076,7 +1093,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     private void setUpWorkOrderBinder() {
         workOrderBinder = new Binder<>(WorkOrder.class);
         workOrderBinder.forField(addressComboBox)
-                .asRequired("Elke werkbon met een werfadres hebben!")
+                .asRequired("Elke werkbon moet een werfadres hebben!")
                 .bind(WorkOrder::getWorkAddress, WorkOrder::setWorkAddress);
         workOrderBinder.forField(locationComboBox)
                 .asRequired("Gelieve een locatie in te geven!")
@@ -1142,6 +1159,12 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     }
 
     private void updateSidebar() {
+        if(customerByWorkAddress == null){
+            rightArrowIcon.getStyle()
+                    .set("color", "gray")
+                    .set("opacity", "0.5")
+                    .set("pointer-events", "none");
+        }
         slideButton.setIcon(sidebarCollapsed ? rightArrowIcon : leftArrowIcon);
         mainSplitLayout.setSplitterPosition(sidebarCollapsed ? 0 : 90);
     }
@@ -1289,7 +1312,7 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         VerticalLayout vLayout = new VerticalLayout();
         vLayout.setPadding(false);
         vLayout.setMargin(false);
-        HorizontalLayout horizontalLayoutLevel6 = new HorizontalLayout();
+        horizontalLayoutLevel6 = new HorizontalLayout();
         horizontalLayoutLevel6.setSizeFull();
         horizontalLayoutLevel6.setPadding(false);
         horizontalLayoutLevel6.setMargin(false);
@@ -1335,7 +1358,6 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
     private void visualizeSelectedOptions(List<Tools> toolsToAdd){
         for(Tools tool : toolsToAdd){
             Set<Product> collect = selectedWorkOrder.getProductList().stream().filter(item -> {
-                System.out.println("Item in selected products : " + item.getAbbreviation() + "->" + tool.getAbbreviation());
                 if(item.getAbbreviation() != null){
                     return ((item.getAbbreviation().contains(tool.getAbbreviation())));
                 }
@@ -1407,11 +1429,17 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             fleetWorkTypeComboBox.setWidth("50%");
             fleetWorkTypeComboBox.setPlaceholder("Type werk kraan");
             fleetWorkTypeComboBox.addValueChangeListener(item -> {
-                if((item.getValue() != null) && (item.getValue().equals(FleetWorkType.DELIVERY))){
-                    tfFleetHours.setEnabled(false);
-                }
-                else{
-                    tfFleetHours.setEnabled(true);
+                if(item.isFromClient()) {
+                    if ((item.getValue() != null) && ((item.getValue().equals(FleetWorkType.DELIVERY)) || (item.getValue().equals(FleetWorkType.NO_WORK)))) {
+                        tfFleetHours.setValue("0");
+                        tfFleetHours.setEnabled(false);
+                    } else {
+                        //TODO recalc amout of hours
+                        tfFleetHours.setValue("");
+                        calcFleetHoursAgain();
+                        tfFleetHours.setPlaceholder(String.valueOf(proposalAmountHoursCrane));
+                        tfFleetHours.setEnabled(true);
+                    }
                 }
             });
 
@@ -1430,6 +1458,16 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             horizontalLayout.add(vLayout1, vLayout2);
         }
         return horizontalLayout;
+    }
+
+    private void calcFleetHoursAgain() {
+        LocalTime up = timeUpPicker.getValue();
+        LocalTime down = timeDownPicker.getValue();
+
+        Duration duration = Duration.between(up, down);
+        long hours = duration.toHours();
+        long minutes = duration.toMinutes() % 60; // Minuten zonder de uren
+        proposalAmountHoursCrane = hours + minutes / 60.0;
     }
 
     private VerticalLayout getLevel3(WorkLocation workLocation) {
@@ -1879,6 +1917,9 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
             }
         });
         addressComboBox.addValueChangeListener(event -> {
+            rightArrowIcon.getStyle().remove("color");
+            rightArrowIcon.getStyle().remove("opacity");
+            rightArrowIcon.getStyle().remove("pointer-events");
             customerByWorkAddress = customerService.getCustomerByWorkAddress(event.getValue());
             if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
                 selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
@@ -1887,6 +1928,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                 Notification notification = new Notification();
                 notification.setText("Dit werkadres bevat meerdere klanten!");
             }
+        });
+        addressComboBox.setAllowCustomValue(true);
+        addressComboBox.addCustomValueSetListener(event -> {
+            String customValue = "Nieuwe klant : " + event.getDetail();
+            Address newAddress = new Address();
+            newAddress.setAddressName(customValue);
+            addressComboBox.getListDataView().addItem(newAddress);
+            addressComboBox.setValue(newAddress);
         });
         addressComboBox.setWidthFull();
         return addressComboBox;
@@ -2058,8 +2107,15 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
         customerByWorkAddress = customerService.getCustomerByWorkAddress(selectedWorkOrder.getWorkAddress());
         if(!customerByWorkAddress.isEmpty() && customerByWorkAddress.get().size() == 1){
             selectProductSubView.setSelectedCustmer(customerByWorkAddress.get().get(0));
+            rightArrowIcon.getStyle().remove("color");
+            rightArrowIcon.getStyle().remove("opacity");
+            rightArrowIcon.getStyle().remove("pointer-events");
         }
         else{
+            rightArrowIcon.getStyle()
+                    .set("color", "gray")
+                    .set("opacity", "0.5")
+                    .set("pointer-events", "none");
             Notification notification = new Notification();
             notification.setText("Dit werkadres bevat meerdere klanten!");
         }
@@ -2161,10 +2217,14 @@ public class WorkorderView extends Div implements HasUrlParameter<String> {
                     if((selectedWorkOrder.getWorkLocation() != null) && (selectedWorkOrder.getWorkLocation().equals(WorkLocation.WORKPLACE))){
                         vLayoutHeaderLevel6Tabs.removeAll();
                         vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.WORKPLACE));
+                        //TODO Open list automatically
+                        horizontalLayoutLevel6.setVisible(true);
                     }
                     else{
                         vLayoutHeaderLevel6Tabs.removeAll();
                         vLayoutHeaderLevel6Tabs.add(getLevel6(WorkLocation.ON_THE_MOVE));
+                        //TODO Open list automatically
+                        horizontalLayoutLevel6.setVisible(true);
                     }
                     selectProductSubView.setSelectedProductList(selectedWorkOrder.getProductList());
                     selectProductSubView.getSelectedProductGrid().getDataProvider().refreshAll();

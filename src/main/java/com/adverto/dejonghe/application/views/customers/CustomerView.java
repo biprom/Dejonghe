@@ -115,6 +115,7 @@ public class CustomerView extends Div implements BeforeEnterObserver {
         setUpBinders();
         setUpAddressGrid();
         setUpContactGrid();
+        setUpCheckBoxAgroAndIndustry();
 
         bNewCustomer.addClickListener(e -> {
             Customer customer = new Customer();
@@ -140,14 +141,20 @@ public class CustomerView extends Div implements BeforeEnterObserver {
                 if (selectedCustomer == null) {
                     selectedCustomer = new Customer();
                 }
-                addressBinder.writeBean(selectedAddress);
-                customerBinder.writeBean(selectedCustomer);
-                customerService.save(selectedCustomer);
-                //grid.select(grid.getSelectedItems().stream().findFirst().get());
-                //addDataToGrid();
-                //only clear the id tf -> for adding products faster (that are simelar)
-                //tfId.setValue(LocalDateTime.now().toString());
-                Notification.show("Data updated");
+                if(selectedCustomer.getBAgro() || selectedCustomer.getBIndustry()){
+                    addressBinder.writeBean(selectedAddress);
+                    customerBinder.writeBean(selectedCustomer);
+                    customerService.save(selectedCustomer);
+                    //grid.select(grid.getSelectedItems().stream().findFirst().get());
+                    //addDataToGrid();
+                    //only clear the id tf -> for adding products faster (that are simelar)
+                    //tfId.setValue(LocalDateTime.now().toString());
+                    Notification.show("Data updated");
+                }
+                else{
+                    Notification.show("Deze klant is niet bewaard. Gelieve de klant agro of industie te maken.").addThemeVariants(NotificationVariant.LUMO_ERROR);
+                }
+
             } catch (ObjectOptimisticLockingFailureException exception) {
                 Notification n = Notification.show(
                         "Error updating the data. Somebody else has updated the record while you were making changes.");
@@ -204,6 +211,19 @@ public class CustomerView extends Div implements BeforeEnterObserver {
             }
             else{
                 Notification.show("Gelieve eerst een adres aan te duiden");
+            }
+        });
+    }
+
+    private void setUpCheckBoxAgroAndIndustry() {
+        checkbAgro.addValueChangeListener(event -> {
+            if(event.isFromClient()){
+                checkbIndustry.setValue(false);
+            }
+        });
+        checkbIndustry.addValueChangeListener(event -> {
+            if(event.isFromClient()){
+                checkbAgro.setValue(false);
             }
         });
     }

@@ -3,7 +3,6 @@ package com.adverto.dejonghe.application.entities.invoice;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Customer;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.product.product.Product;
 import jakarta.persistence.Id;
 import lombok.Getter;
@@ -23,16 +22,24 @@ public class Invoice {
     @Id
     private String id;
 
+    Boolean bFinalInvoice = Boolean.FALSE;
     Integer invoiceNumber;
+    Integer finalInvoiceNumber;
     Customer customer;
     Address workAddress;
     LocalDate invoiceDate;
     LocalDate expiryDate;
-    InvoiceStatus invoiceStatus;
+    LocalDate paymentDate;
     String discription;
-    Boolean toCheck;
-    Boolean bApproved;
-    Boolean bRejected;
+    Boolean toCheck = false;
+    Boolean bApproved = false;
+    Boolean bRejected = false;
+    Boolean open = false;
+    Boolean expired = false;
+    Boolean paid = false;
+    Boolean reminder1 = false;
+    Boolean reminder2 = false;
+    Boolean reminder3 = false;
 
     Set<WorkOrder> workOrderList;
 

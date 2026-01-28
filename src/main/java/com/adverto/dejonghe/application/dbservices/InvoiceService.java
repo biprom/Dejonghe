@@ -1,11 +1,7 @@
 package com.adverto.dejonghe.application.dbservices;
 
-import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
-import com.adverto.dejonghe.application.entities.enums.workorder.WorkOrderStatus;
 import com.adverto.dejonghe.application.entities.invoice.Invoice;
 import com.adverto.dejonghe.application.repos.InvoiceRepo;
-import com.adverto.dejonghe.application.repos.WorkOrderRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,12 +28,16 @@ public class InvoiceService {
         }
     }
 
-    public Optional<Invoice> getLastInvoice() {
-        return invoiceRepo.findTopByOrderByInvoiceNumberDesc();
+    public Optional<Invoice> getLastProFormaInvoice() {
+        return invoiceRepo.findTopBybFinalInvoiceFalseOrderByInvoiceNumberDesc();
     }
 
-    public Optional<List<Invoice>> getAllInvoicesByStatus(InvoiceStatus status) {
-        List<Invoice> invoices = invoiceRepo.findInvoiceByInvoiceStatus(status);
+    public Optional<Invoice>  getLastFinalInvoice() {
+        return invoiceRepo.findTopBybFinalInvoiceTrueOrderByInvoiceNumberDesc();
+    }
+
+    public Optional<List<Invoice>> getAllInvoicesByFinalInvoice(Boolean finalInvoice) {
+        List<Invoice> invoices = invoiceRepo.findInvoiceBybFinalInvoice(finalInvoice);
         if (!invoices.isEmpty()) {
             return Optional.of(invoices);
         }
@@ -53,4 +53,6 @@ public class InvoiceService {
     public void save(Invoice invoice) {
         invoiceRepo.save(invoice);
         }
-    }
+
+
+}

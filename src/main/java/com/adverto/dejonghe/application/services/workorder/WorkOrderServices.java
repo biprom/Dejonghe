@@ -1,29 +1,16 @@
 package com.adverto.dejonghe.application.services.workorder;
 
-import com.adverto.dejonghe.application.dbservices.CustomerService;
-import com.adverto.dejonghe.application.dbservices.ProductService;
-import com.adverto.dejonghe.application.dbservices.WorkOrderService;
 import com.adverto.dejonghe.application.entities.WorkOrder.BowlEntity;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrder;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderHeader;
 import com.adverto.dejonghe.application.entities.WorkOrder.WorkOrderTime;
-import com.adverto.dejonghe.application.entities.customers.Address;
-import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.fleet.Fleet;
 import com.adverto.dejonghe.application.entities.enums.fleet.FleetWorkType;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.enums.workorder.WorkLocation;
 import com.adverto.dejonghe.application.entities.enums.workorder.WorkType;
-import com.adverto.dejonghe.application.entities.invoice.Invoice;
-import com.adverto.dejonghe.application.entities.product.product.Product;
-import com.vaadin.flow.component.notification.Notification;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.LocalDate;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class WorkOrderServices {

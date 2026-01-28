@@ -49,7 +49,8 @@ public class CustomerService {
         addressList.clear();
         if (!customers.isEmpty()) {
             for(Customer customer : customers) {
-                customer.getAddresses().stream().filter(address -> (address.getInvoiceAddress() == null) ||  (address.getInvoiceAddress() != true)).forEach(address -> {
+                //Add all workAddresses to the addressList
+                customer.getAddresses().stream().filter(address -> (address.getInvoiceAddress() == null) ||  (address.getInvoiceAddress() == false)).forEach(address -> {
                     if((address.getAddressName() != null) && (address.getAddressName().length() > 0)) {
                         address.setCustomerName(customer.getName());
                         addressList.add(address);
@@ -59,6 +60,17 @@ public class CustomerService {
                         addressList.add(address);
                     }
                 });
+
+                //if customer only has a invoiceAddress use this one
+                if((customer.getAddresses().size() == 1) && (customer.getAddresses().get(0).getInvoiceAddress() != null) && (customer.getAddresses().get(0).getInvoiceAddress() == true)){
+                    Address address = customer.getAddresses().get(0);
+                    address.setCustomerName(customer.getName());
+                    if((address.getAddressName() == null) || (address.getAddressName().length() == 0)){
+                        address.setAddressName(customer.getName());
+                    }
+                    addressList.add(address);
+                }
+
             }
             return Optional.of(addressList);
         }

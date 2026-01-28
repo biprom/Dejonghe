@@ -5,11 +5,14 @@ import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
 import com.adverto.dejonghe.application.entities.product.enums.E_Product_Level;
 import com.adverto.dejonghe.application.entities.product.product.*;
 import com.adverto.dejonghe.application.repos.ProductRepo;
+import com.adverto.dejonghe.application.services.product.ProductServices;
+import com.adverto.dejonghe.application.services.product.SetService;
 import com.adverto.dejonghe.application.views.subViews.*;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.contextmenu.MenuItem;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
@@ -21,6 +24,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.menubar.MenuBar;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -40,7 +44,7 @@ import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -52,7 +56,7 @@ import java.util.stream.Collectors;
 import static com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY_INLINE;
 
 @PageTitle("ArtikelenNieuw")
-@Route("ArtikelenNieuw")
+@Route("")
 @Menu(order = 0, icon = LineAwesomeIconUrl.COG_SOLID)
 public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnterObserver {
 
@@ -60,7 +64,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
     private FileSystemResource linkToBulkSpreadsheet = new FileSystemResource("/Users/bramvandenberghe/Desktop/dejonghe.xlsx");
     //private FileSystemResource linkToBulkSpreadsheet = new FileSystemResource("D:\\Algemeen\\Documentatie\\Dejonghe-techniek\\Database\\dejonghe.xlsx\\dejonghe.xlsx");
 
-    Notification deleteCustomerNotification;
+    Notification deleteProductNotification;
 
     private final ProductService productService;
     private ProductLevel1Service productLevel1Service;
@@ -70,11 +74,14 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
     private ProductLevel5Service productLevel5Service;
     private ProductLevel6Service productLevel6Service;
     private ProductLevel7Service productLevel7Service;
+    private SetService setService;
 
     private ProductRepo productRepo;
     private SupplierService supplierService;
 
     private SetView setView;
+    private MoveView moveView;
+    private CopyView copyView;
     private SetViewSimple setViewSimple;
     private NewArticleView newArticleView;
     private ChangeArticleView changeArticleView;
@@ -98,9 +105,11 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
     private Dialog pdfDialog;
     private Dialog linkDialog;
     private Dialog setViewSimpleDialog;
+    private Dialog moveProductDialog;
+    private Dialog copyProductDialog;
 
     private final Grid<Product> grid = new Grid<>(Product.class, false);
-    private List<Product>productForGrid;
+    private List<Product> productsForGrid;
 
     private TextField tfGeneralFilter;
     private TextField tfFolderFilter;
@@ -125,8 +134,6 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
     private ComboBox<ProductLevel6>cbProductLevel6;
     private ComboBox<ProductLevel7>cbProductLevel7;
 
-//    Notification changePurchasePriceNotification;
-
     private Button bAddProductLevel1;
     private Button bAddProductLevel2;
     private Button bAddProductLevel3;
@@ -149,8 +156,6 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
     private final Button buttonNewProduct = new Button("Nieuw");
     private final Button buttonSave = new Button("Bewaar");
-    private final Button buttonConfigureSet = new Button("Bewerk set");
-    private final Button buttonChange = new Button("Voeg toe");
 
     private List<String> importBulkLevelList = new ArrayList<>();
 
@@ -159,7 +164,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
     private Grid<PurchasePrice>purchasePriceGrid = new Grid<>();
 
-    DecimalFormat df = new DecimalFormat("0.00");
+    NumberFormat df = NumberFormat.getNumberInstance(new Locale("nl", "BE"));
 
     private Spreadsheet spreadsheet;
 
@@ -174,6 +179,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
     List<Product>temporaryProductList = new ArrayList<>();
     Optional<List<Product>> byProductCodeContaining;
     List<Product>selectedSetList = new ArrayList<>();
+    MenuBar actionBar;
 
     public ImportArticleViewNieuw(ProductService productService,
                                   ProductRepo productRepo,
@@ -186,12 +192,15 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                                   ProductLevel7Service productLevel7Service,
                                   SupplierService supplierService,
                                   SetView setView,
+                                  MoveView moveView,
+                                  CopyView copyView,
                                   NewArticleView newArticleView,
                                   ChangeArticleView changeArticleView,
                                   ShowImageSubVieuw showImageSubVieuw,
                                   ShowPdfSubVieuw showPdfSubVieuw,
                                   ShowLinkSubVieuw showLinkSubVieuw,
-                                  SetViewSimple setViewSimple) {
+                                  SetViewSimple setViewSimple,
+                                  SetService setService) {
         this.productService = productService;
         this.productRepo = productRepo;
         this.productLevel1Service = productLevel1Service;
@@ -203,16 +212,20 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         this.productLevel7Service = productLevel7Service;
         this.supplierService = supplierService;
         this.setView = setView;
+        this.moveView = moveView;
+        this.copyView = copyView;
         this.newArticleView = newArticleView;
         this.changeArticleView = changeArticleView;
         this.showImageSubVieuw = showImageSubVieuw;
         this.showPdfSubVieuw = showPdfSubVieuw;
         this.showLinkSubVieuw = showLinkSubVieuw;
         this.setViewSimple = setViewSimple;
+        this.setService = setService;
 
         addClassNames("master-detail-view");
 
         // Create UI
+        setUpNumberFormat();
         setUpLinkDialog();
         setUpImageDialog();
         setUpPdfDialog();
@@ -229,6 +242,8 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         setUpProductLevelComboBoxes();
         setUpBulkDialog();
         setUpConfigureSetDialog();
+        setUpCopyDialog();
+        setUpMoveDialog();
         setUpNewArticleDialog();
         setUpChangeDialog();
         setUpPurchasePricegrid();
@@ -269,8 +284,8 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             }
             selectedProduct = newProduct;
             populateForm(newProduct);
-            productForGrid.add(newProduct);
-            grid.setItems(productForGrid);
+            productsForGrid.add(newProduct);
+            addItemsToGrid(productsForGrid);
             grid.scrollToItem(newProduct);
             grid.select(newProduct);
             editor.editItem(selectedProduct);
@@ -290,11 +305,38 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                         }
                     }
 
-                    productService.save(selectedProduct);
+                    //check if article is a part
+                    //if it is nog part just save the article
+                    //if it is in a part also edit the article in the set (code and folders have to be the same!!!)
+                    if((selectedProduct.getSetElement() == null)||(selectedProduct.getSetElement() == false)){
+                        productService.save(selectedProduct);
+                    }
+                    else{
+                        Optional<List<Product>> setsWithThisElement = productService.findSetsWithThisElement(selectedProduct);
+                        if(!setsWithThisElement.isEmpty()) {
+                            setsWithThisElement.get().forEach(set -> {
+                                //change margins and price
+                                set.getSetList().stream().filter(item -> item.getProductCode().matches(selectedProduct.getProductCode())).forEach(item -> {
+                                    item.setPurchasePrice(set.getPurchasePrice());
+                                    item.setSellMargin(selectedProduct.getSellMargin());
+                                    item.setSellPrice(selectedProduct.getSellPrice());
+                                    item.setSellMarginIndustry(selectedProduct.getSellMarginIndustry());
+                                    item.setSellPriceIndustry(selectedProduct.getSellPriceIndustry());
+                                });
+                                set.setSellPrice(setService.tryToCalculateSellAgroPrice(set));
+                                set.setSellPriceIndustry(setService.tryToCalculateSellIndustryPrice(set));
+                                productService.save(set);
+                                productService.save(selectedProduct);
+                            });
+                        }
+                        productService.save(selectedProduct);
+                    }
 
-                    //show pop up to check if everything is ok.
-                    if((tfProductCode.getValue() != null) && (tfProductCode.getValue().length() > 0)) {
-                        byProductCodeContaining = productService.findByProductCodeEqualCaseInsensitive(tfProductCode.getValue().toLowerCase());
+
+
+                    //show pop up to check if there are multiple articles with the same code (not in sets!!!).
+                    if((selectedProduct.getProductCode() != null) && (selectedProduct.getProductCode().length() > 0)) {
+                        byProductCodeContaining = productService.findByProductCodeEqualCaseInsensitive(selectedProduct.getProductCode().toLowerCase());
                         if((byProductCodeContaining != null) && (!byProductCodeContaining.isEmpty())&& (byProductCodeContaining.get().size() > 1)) {
                             newArticleView.setSameProductList(byProductCodeContaining);
                             newArticleView.setCorrectedPrice(tfPurchasePrice.getValue());
@@ -312,17 +354,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                 n.addThemeVariants(NotificationVariant.LUMO_ERROR);
             }
         });
+    }
 
-
-        buttonConfigureSet.addClickListener(e -> {
-            configureSetDialog.open();
-            setView.setSelectedProductForSet(selectedProduct);
-        });
-
-        buttonChange.addClickListener(e -> {
-            changeArticleView.setSelectedProduct(selectedProduct);
-            changeArticleDialog.open();
-        });
+    private void setUpNumberFormat() {
+        df.setMinimumFractionDigits(2);
+        df.setMaximumFractionDigits(2);
+        df.setGroupingUsed(true);
     }
 
     private void setUpPdfDialog() {
@@ -343,6 +380,9 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         setViewSimpleDialog.setCloseOnEsc(true);
         setViewSimpleDialog.setWidth("60%");
         setViewSimpleDialog.setHeight("60%");
+        setViewSimpleDialog.setDraggable(true);
+        setViewSimple.setParentDialog(setViewSimpleDialog);
+        setViewSimple.setImportArticleViewNieuw(this);
         setViewSimpleDialog.add(setViewSimple);
         Button cancelButton = new Button("Sluiten", e -> {
             setViewSimpleDialog.close();
@@ -393,6 +433,38 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         });
     }
 
+    private void setUpCopyDialog() {
+        copyProductDialog = new Dialog();
+        copyProductDialog.setWidth("90%");
+        copyProductDialog.setHeight("90%");
+        copyProductDialog.add(copyView);
+        Button cancelButton = new Button("Sluiten", e -> {
+            copyProductDialog.close();
+            refreshItemsInGrid();
+        });
+        copyProductDialog.getFooter().add(cancelButton);
+        copyProductDialog.addDialogCloseActionListener(event -> {
+            copyProductDialog.close();
+            refreshItemsInGrid();
+        });
+    }
+
+    private void setUpMoveDialog() {
+        moveProductDialog = new Dialog();
+        moveProductDialog.setWidth("90%");
+        moveProductDialog.setHeight("90%");
+        moveProductDialog.add(moveView);
+        Button cancelButton = new Button("Sluiten", e -> {
+            moveProductDialog.close();
+            refreshItemsInGrid();
+        });
+        moveProductDialog.getFooter().add(cancelButton);
+        moveProductDialog.addDialogCloseActionListener(event -> {
+            moveProductDialog.close();
+            refreshItemsInGrid();
+        });
+    }
+
     private void setUpChangeDialog(){
         changeArticleDialog = new Dialog();
         changeArticleDialog.setWidth("60%");
@@ -418,13 +490,13 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                 Notification.show("PopUp is closed");
                 if(!byProductCodeContaining.isEmpty()){
                     for(Product product : byProductCodeContaining.get() ){
-                        Optional<Product> itemInGrid = productForGrid.stream().filter(item -> item.getId().equals(product.getId())).findFirst();
+                        Optional<Product> itemInGrid = productsForGrid.stream().filter(item -> item.getId().equals(product.getId())).findFirst();
                         if(itemInGrid.isPresent()) {
-                            int id = productForGrid.indexOf(itemInGrid.get());
-                            productForGrid.remove(itemInGrid.get());
+                            int id = productsForGrid.indexOf(itemInGrid.get());
+                            productsForGrid.remove(itemInGrid.get());
                             Optional<Product> updatedProductFromDB = productService.get(product.getId());
                             if(updatedProductFromDB.isPresent()) {
-                                productForGrid.add(id,updatedProductFromDB.get());
+                                productsForGrid.add(id,updatedProductFromDB.get());
                             }
                         }
                     }
@@ -442,41 +514,63 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
 
     private Notification createReportError() {
-        deleteCustomerNotification = new Notification();
-        deleteCustomerNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+        deleteProductNotification = new Notification();
+        deleteProductNotification.addThemeVariants(NotificationVariant.LUMO_ERROR);
 
         Icon icon = VaadinIcon.WARNING.create();
         Button retryBtn = new Button("Annuleer",
-                clickEvent -> deleteCustomerNotification.close());
+                clickEvent -> deleteProductNotification.close());
         retryBtn.getStyle().setMargin("0 0 0 var(--lumo-space-l)");
 
         var layout = new HorizontalLayout(icon,
                 new Text("Ben je zeker dat je dit artikel wil wissen?"), retryBtn,
-                createCloseBtn(deleteCustomerNotification));
+                createCloseBtn(deleteProductNotification));
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        deleteCustomerNotification.add(layout);
+        deleteProductNotification.add(layout);
 
-        return deleteCustomerNotification;
+        return deleteProductNotification;
     }
 
     public Button createCloseBtn(Notification notification) {
         Button closeBtn = new Button(VaadinIcon.TRASH.create(),
                 clickEvent -> {
-                    if(productForGrid != null){
+                    if(productsForGrid != null){
                         //when filter is selected
-                        productForGrid.remove(selectedProduct);
-                        grid.getDataProvider().refreshAll();
+                        productsForGrid.remove(selectedProduct);
                         productService.delete(selectedProduct);
                         Notification.show("Artikel is verwijderd");
                     }
                     else{
                         //when filter is not touched
+                        productsForGrid.remove(selectedProduct);
                         productService.delete(selectedProduct);
                         addDataToGrid();
                         Notification.show("Artikel is verwijderd");
                     }
+                    //check if selectedProduct is in sets and remove product + recalc set
+                    Optional<List<Product>>setsWhereProductIsIn = setService.removeItemFromSetsAndRecalculateSet(selectedProduct);
+                    //TODO fucking refresh sellprices and purchaseprice when adding product
+
+//                    //refresh set if it is in this folder
+//                    if(setsWhereProductIsIn.isPresent()){
+//                        if (setsWhereProductIsIn.get().size() >= 1) {
+//                            for (Product set : setsWhereProductIsIn.get()) {
+//                                for(Product product : productsForGrid){
+//                                    System.out.println("product : " + product.getId() + " -> " + set.getId());
+//                                    if(product.getId().equals(set.getId())){
+//                                        product.setPurchasePrice(setService.tryToCalculatePurchasePrice(product));
+//                                        product.setSellPrice(setService.tryToCalculateSellAgroPrice(product));
+//                                        product.setSellPriceIndustry(setService.tryToCalculateSellIndustryPrice(product));
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+                    //addItemsToGrid(productsForGrid);
+                    refreshItemsInGrid();
                     notification.close();
+
                 });
         closeBtn.addThemeVariants(LUMO_TERTIARY_INLINE);
 
@@ -505,8 +599,8 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             tfFolderFilter.setValue("");
             Optional<List<Product>> optCustomer = productService.getProductByInternalNameOrCodeOrComment(tfGeneralFilter.getValue(), tfGeneralFilter.getValue(), tfGeneralFilter.getValue());
             if(optCustomer.isPresent()) {
-                productForGrid = optCustomer.get();
-                addItemsToGrid(productForGrid);
+                productsForGrid = optCustomer.get();
+                addItemsToGrid(productsForGrid);
             }
             else{
                 Notification.show("Geen klanten gevonden");
@@ -519,7 +613,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             if (updating.get()) return;
             updating.set(true);
             tfGeneralFilter.setValue("");
-            addItemsToGrid(productForGrid.stream().filter(item -> item.getInternalName().toLowerCase().contains(e.getValue().toLowerCase())).collect(Collectors.toList()));
+            addItemsToGrid(productsForGrid.stream().filter(item -> item.getInternalName().toLowerCase().contains(e.getValue().toLowerCase())).collect(Collectors.toList()));
             updating.set(false);
         });
     }
@@ -1107,7 +1201,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         fillComboBoxLevel1WithItemsToStart();
 
 
-        cbProductLevel1.addClassName("bold-selected");
+        cbProductLevel1.addClassName("highlight-border");
         cbProductLevel1.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1141,13 +1235,13 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName());
                     if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     }
                     else{
                         List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
 
@@ -1174,13 +1268,13 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName());
                     if(allProductsByCategory.isPresent()){
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     }
                     else{
                         List<Product>products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 }
@@ -1191,6 +1285,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
         });
 
+        cbProductLevel2.addClassName("highlight-border");
         cbProductLevel2.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1220,12 +1315,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 } else {
@@ -1247,12 +1342,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 }
@@ -1262,6 +1357,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             }
         });
 
+        cbProductLevel3.addClassName("highlight-border");
         cbProductLevel3.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1288,12 +1384,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
 
@@ -1313,12 +1409,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 }
@@ -1328,6 +1424,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             }
         });
 
+        cbProductLevel4.addClassName("highlight-border");
         cbProductLevel4.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1351,12 +1448,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 } else {
@@ -1371,12 +1468,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                     cbProductLevel7.setEnabled(false);
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
                 }
             }
@@ -1385,6 +1482,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             }
         });
 
+        cbProductLevel5.addClassName("highlight-border");
         cbProductLevel5.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1405,12 +1503,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
 
@@ -1423,12 +1521,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                     cbProductLevel7.setEnabled(false);
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
                 }
@@ -1437,7 +1535,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                 updating.set(false);
             }
         });
-
+        cbProductLevel6.addClassName("highlight-border");
         cbProductLevel6.addValueChangeListener(event -> {
 
             if (updating.get()) return;
@@ -1455,12 +1553,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
 
                     Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                     if (allProductsByCategory.isPresent()) {
-                        productForGrid = allProductsByCategory.get();
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = allProductsByCategory.get();
+                        addItemsToGrid(productsForGrid);
                     } else {
                         List<Product> products = new ArrayList<>();
-                        productForGrid = products;
-                        addItemsToGrid(productForGrid);
+                        productsForGrid = products;
+                        addItemsToGrid(productsForGrid);
                     }
 
 
@@ -1472,12 +1570,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                         //filter Products
                         Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                         if (allProductsByCategory.isPresent()) {
-                            productForGrid = allProductsByCategory.get();
+                            productsForGrid = allProductsByCategory.get();
                             addItemsToGrid(allProductsByCategory.get());
                         } else {
                             List<Product> products = new ArrayList<>();
-                            productForGrid = products;
-                            addItemsToGrid(productForGrid);
+                            productsForGrid = products;
+                            addItemsToGrid(productsForGrid);
                         }
                     }
                 }
@@ -1488,6 +1586,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             }
         });
 
+        cbProductLevel7.addClassName("highlight-border");
         cbProductLevel7.addValueChangeListener(event -> {
             if (updating.get()) return;
             updating.set(true);
@@ -1496,12 +1595,12 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                 tfFolderFilter.setValue("");
                 Optional<List<Product>> allProductsByCategory = productService.getAllProductsByCategory(event.getValue().getName(), cbProductLevel6.getValue().getName(), cbProductLevel5.getValue().getName(), cbProductLevel4.getValue().getName(), cbProductLevel3.getValue().getName(), cbProductLevel2.getValue().getName(), cbProductLevel1.getValue().getName());
                 if (allProductsByCategory.isPresent()) {
-                    productForGrid = allProductsByCategory.get();
-                    addItemsToGrid(productForGrid);
+                    productsForGrid = allProductsByCategory.get();
+                    addItemsToGrid(productsForGrid);
                 } else {
                     List<Product> products = new ArrayList<>();
-                    productForGrid = products;
-                    addItemsToGrid(productForGrid);
+                    productsForGrid = products;
+                    addItemsToGrid(productsForGrid);
                 }
             }
             finally {
@@ -1561,16 +1660,6 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         purchaceColumn.setEditorComponent(tfPurchasePrice);
         productBinder.forField(tfSellMargin)
                 .withNullRepresentation("0.00")
-//                .withValidator(
-//                        value -> {
-//                            try {
-//                                double d = Double.parseDouble(value);
-//                                return true;
-//                            } catch (NumberFormatException nfe) {
-//                                return false;
-//                            }
-//                        }
-//                        ,"De ingave moet een decimaal nummer zijn (getal met een punt als komma)")
                 .withConverter(
                         new StringToDoubleConverter("De ingave moet een decimaal nummer zijn (getal met een punt als komma)"))
                 .bind(Product::getSellMargin, Product::setSellMargin);
@@ -1694,8 +1783,8 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             product.setProductLevel1(productLevel1);
             products.add(product);
             productService.save(product);
-            productForGrid = products;
-            addItemsToGrid(productForGrid);
+            productsForGrid = products;
+            addItemsToGrid(productsForGrid);
         }
     }
 
@@ -1708,7 +1797,7 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             closeButton.addClickListener(event -> {
                 Notification.show("Openen verificatie");
                 selectedProduct = item;
-                deleteCustomerNotification.open();
+                deleteProductNotification.open();
             });
             return closeButton;
         }).setFlexGrow(0).setHeader(new Icon(VaadinIcon.TRASH)).setTextAlign(ColumnTextAlign.CENTER);
@@ -1768,14 +1857,35 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
                 setButton.addThemeVariants(ButtonVariant.LUMO_ICON);
                 setButton.addClickListener(event -> {
                     selectedProduct = product;
-                    setViewSimple.setSelectedSet(product);
-                    setViewSimpleDialog.open();
+                    openEditSet();
                 });
                 return setButton;
             } else {
+                //Check if there are Copies
+                if((product.getProductCode() != null) && (!product.getProductCode().isEmpty())){
+                    Optional<List<Product>> byProductCodeEqualCaseInsensitive = productService.findByProductCodeEqualCaseInsensitive(product.getProductCode());
+                    if (byProductCodeEqualCaseInsensitive.isPresent()) {
+                        if(byProductCodeEqualCaseInsensitive.get() != null){
+                            long amountArticlesInSet = byProductCodeEqualCaseInsensitive.get().stream().filter(item -> (item.getSetElement() != null) &&(item.getSetElement() == true)).count();
+                            if(amountArticlesInSet > 0){
+                                Button setButton = new Button("C"+amountArticlesInSet);
+                                setButton.addThemeVariants(ButtonVariant.LUMO_ICON);
+                                setButton.addClickListener(event -> {
+                                    selectedProduct = product;
+                                    setViewSimple.setSelectedProduct(product);
+                                    setViewSimpleDialog.open();
+                                });
+                                return setButton;
+                            }
+                            else{
+                                return new Span("");
+                            }
+                        }
+                    }
+                }
                 return new Span("");
             }
-        }).setFlexGrow(0).setHeader(new Span("S/0")).setTextAlign(ColumnTextAlign.CENTER);
+        }).setFlexGrow(1).setHeader(new Span("S/O/C")).setTextAlign(ColumnTextAlign.CENTER);
         OSGrid.addClassName("center-header");
         OSGrid.getElement().getThemeList().add("no-min-width");
         OSGrid.setWidth("70px");
@@ -2006,6 +2116,20 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             selectedProduct = event.getItem();
             editor.cancel();
             editor.editItem(event.getItem());
+            if((event.getItem().getSet() != null) && (event.getItem().getSet())){
+                tfPurchasePrice.setEnabled(false);
+                tfSellMargin.setEnabled(false);
+                tfSellPrice.setEnabled(false);
+                tfSellIndustryMargin.setEnabled(false);
+                tfSellIndustryPrice.setEnabled(false);
+            }
+            else{
+                tfPurchasePrice.setEnabled(true);
+                tfSellMargin.setEnabled(true);
+                tfSellPrice.setEnabled(true);
+                tfSellIndustryMargin.setEnabled(true);
+                tfSellIndustryPrice.setEnabled(true);
+            }
             Component editorComponent = event.getColumn().getEditorComponent();
             if (editorComponent instanceof Focusable) {
                 ((Focusable) editorComponent).focus();
@@ -2227,10 +2351,48 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         buttonLayout.setClassName("button-layout");
         buttonNewProduct.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         buttonSave.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonConfigureSet.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonChange.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonLayout.add(buttonSave, buttonNewProduct, buttonConfigureSet, buttonChange);
+        buttonLayout.add(buttonSave, buttonNewProduct, getActionMenu());
         return buttonLayout;
+    }
+
+    private MenuBar getActionMenu() {
+        actionBar = new MenuBar();
+        MenuItem actie = actionBar.addItem("Actie");
+        actie.getSubMenu().addItem("Bewerk set", e -> openEditSet());
+        actie.getSubMenu().addItem("Voeg toe", e -> changeProduct());
+        actie.getSubMenu().addItem("Verplaats artikel", e -> moveProduct());
+        actie.getSubMenu().addItem("Kopiëer artikel", e -> copyProduct());
+        return actionBar;
+    }
+
+    private void moveProduct() {
+        moveProductDialog.open();
+        String result1 = cbProductLevel1.getValue() == null ? "" : cbProductLevel1.getValue().getName();
+        String result2 = cbProductLevel2.getValue() == null ? "" : cbProductLevel2.getValue().getName();
+        String result3 = cbProductLevel3.getValue() == null ? "" : cbProductLevel3.getValue().getName();
+        String result4 = cbProductLevel4.getValue() == null ? "" : cbProductLevel4.getValue().getName();
+        String result5 = cbProductLevel5.getValue() == null ? "" : cbProductLevel5.getValue().getName();
+        moveView.goToSelectedFolder(result1, result2, result3, result4, result5);
+    }
+
+    private void copyProduct() {
+        copyProductDialog.open();
+        String result1 = cbProductLevel1.getValue() == null ? "" : cbProductLevel1.getValue().getName();
+        String result2 = cbProductLevel2.getValue() == null ? "" : cbProductLevel2.getValue().getName();
+        String result3 = cbProductLevel3.getValue() == null ? "" : cbProductLevel3.getValue().getName();
+        String result4 = cbProductLevel4.getValue() == null ? "" : cbProductLevel4.getValue().getName();
+        String result5 = cbProductLevel5.getValue() == null ? "" : cbProductLevel5.getValue().getName();
+        copyView.goToSelectedFolder(result1, result2, result3, result4, result5);
+    }
+
+    private void openEditSet(){
+        configureSetDialog.open();
+        setView.setSelectedProductForSet(selectedProduct);
+    }
+
+    private void changeProduct(){
+        changeArticleView.setSelectedProduct(selectedProduct);
+        changeArticleDialog.open();
     }
 
     private Div createGridLayout() {
@@ -2308,7 +2470,6 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             Notification notification = new Notification("Gelieve decimale getallen in te vullen aub!");
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
-
     }
 
     private void tryToCalculateSellPriceIndustry(Product product) {
@@ -2330,7 +2491,6 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
             Notification notification = new Notification("Gelieve decimale getallen in te vullen aub!");
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
-
     }
 
     private void addItemsToGrid(List<Product> productList) {
@@ -2346,6 +2506,30 @@ public class ImportArticleViewNieuw extends VerticalLayout implements BeforeEnte
         productListToShowInGrid.clear();
         temporaryProductList.stream().forEach(item -> productService.get(item.getId()).ifPresent(product -> {productListToShowInGrid.add(product);}));
         grid.setItems(productListToShowInGrid);
+    }
+
+    public void goToRightFolderAndSelectProduct(Product product) {
+        updating.set(true);
+        cbProductLevel1.setItems(productLevel1Service.getAllProductLevel1().get());
+        updating.set(false);
+        if((product.getProductLevel1() != null)&&(product.getProductLevel1().getName().length() > 0))
+            cbProductLevel1.setValue(productLevel1Service.getProductLevel1ByName(product.getProductLevel1().getName()).get());
+        if((product.getProductLevel2() != null)&&(product.getProductLevel2().getName().length() > 0))
+            cbProductLevel2.setValue(productLevel2Service.getProductLevel2ByName(product.getProductLevel2().getName()).get());
+        if((product.getProductLevel3() != null)&&(product.getProductLevel3().getName().length() > 0))
+            cbProductLevel3.setValue(productLevel3Service.getProductLevel3ByName(product.getProductLevel3().getName()).get());
+        if((product.getProductLevel4() != null)&&(product.getProductLevel4().getName().length() > 0))
+            cbProductLevel4.setValue(productLevel4Service.getProductLevel4ByName(product.getProductLevel4().getName()).get());
+        if((product.getProductLevel5() != null)&&(product.getProductLevel5().getName().length() > 0))
+            cbProductLevel5.setValue(productLevel5Service.getProductLevel5ByName(product.getProductLevel5().getName()).get());
+        //select product
+        Optional<Product> itemToSelect = productsForGrid.stream().filter(item -> item.getProductCode().matches(product.getProductCode())).findFirst();
+        if(itemToSelect.isPresent()) {
+            grid.select(itemToSelect.get());
+        }
+        else{
+            Notification.show("Geen match gevonden");
+        }
     }
 
 //    private Notification createReportChangePurchasePrice() {

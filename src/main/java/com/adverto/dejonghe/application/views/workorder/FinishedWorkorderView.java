@@ -210,10 +210,16 @@ public class FinishedWorkorderView extends Div implements BeforeEnterObserver {
     public void beforeEnter(BeforeEnterEvent beforeEnterEvent) {
         this.removeAll();
         this.setSizeFull();
+        this.getStyle()
+                .set("display", "flex")
+                .set("flex-direction", "column");
         this.add(getButtonLayout());
         setUpOpenWorkOrder();
         setUpButtonMakeProformaInvoice();
         setUpButtonMakeProformaPerDay();
+        currtentWorkOrdersSubVieuw.setWidthFull();
+        currtentWorkOrdersSubVieuw.getStyle().set("flex-grow", "1");
+        currtentWorkOrdersSubVieuw.getStyle().set("overflow", "auto");
         this.add(currtentWorkOrdersSubVieuw);
         loadData();
     }

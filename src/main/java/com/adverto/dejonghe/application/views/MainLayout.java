@@ -6,12 +6,14 @@ import com.adverto.dejonghe.application.views.articles.ArticleView;
 import com.adverto.dejonghe.application.views.articles.ImportArticleView;
 import com.adverto.dejonghe.application.views.articles.ImportArticleViewNieuw;
 import com.adverto.dejonghe.application.views.customers.CustomerView;
+import com.adverto.dejonghe.application.views.invoice.FinalInvoiceView;
 import com.adverto.dejonghe.application.views.invoice.NewInvoiceView;
 import com.adverto.dejonghe.application.views.invoice.ProformaInvoiceView;
 import com.adverto.dejonghe.application.views.workorder.FinishedWorkorderView;
 import com.adverto.dejonghe.application.views.workorder.PendingWorkorderView;
 import com.adverto.dejonghe.application.views.workorder.WorkorderView;
 import com.vaadin.flow.component.HasText;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
 import com.vaadin.flow.component.html.*;
@@ -29,6 +31,8 @@ import com.vaadin.flow.theme.lumo.Lumo;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Locale;
+
 /**
  * The main view is a top-level placeholder for other views.
  */
@@ -44,6 +48,7 @@ public class MainLayout extends AppLayout {
     SideNav nav;
 
     public MainLayout() {
+        //UI.getCurrent().setLocale(new Locale("nl", "BE"));
         setUpNavBar();
         setPrimarySection(Section.DRAWER);
         addHeaderContent();
@@ -108,11 +113,11 @@ public class MainLayout extends AppLayout {
         SideNavItem invoiceLink = new SideNavItem("Facturatie",
                 NewInvoiceView.class, VaadinIcon.EURO.create());
         invoiceLink.addItem(new SideNavItem("Nieuw", NewInvoiceView.class,
-                VaadinIcon.WRENCH.create()));
+                VaadinIcon.EURO.create()));
         invoiceLink.addItem(new SideNavItem("Pro forma", ProformaInvoiceView.class,
-                VaadinIcon.WRENCH.create()));
-        invoiceLink.addItem(new SideNavItem("Facturen", NewInvoiceView.class,
-                VaadinIcon.WRENCH.create()));
+                VaadinIcon.EURO.create()));
+        invoiceLink.addItem(new SideNavItem("Facturen", FinalInvoiceView.class,
+                VaadinIcon.EURO.create()));
         SideNavItem workOrderLink = new SideNavItem("Werkbon", WorkorderView.class, VaadinIcon.BOOK.create());
         workOrderLink.addItem(new SideNavItem("Nieuw", WorkorderView.class,
                 VaadinIcon.WRENCH.create()));

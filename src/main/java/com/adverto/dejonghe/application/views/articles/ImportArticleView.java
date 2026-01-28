@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
 import static com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY_INLINE;
 
 @PageTitle("Artikelen")
-@Route("")
+@Route("artikelen")
 @Menu(order = 0, icon = LineAwesomeIconUrl.COG_SOLID)
 public class ImportArticleView extends Div implements BeforeEnterObserver {
 

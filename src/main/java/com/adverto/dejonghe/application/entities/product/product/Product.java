@@ -19,6 +19,7 @@ public class Product implements Serializable {
     @Id
     private String id;
     private LocalDate date;
+    private String dateToShowOnInvoice;
     private Boolean showDate = Boolean.TRUE;
     private Boolean option;
     private Boolean set;
@@ -52,12 +53,13 @@ public class Product implements Serializable {
     private Boolean bWorkHour = Boolean.FALSE;
     private Boolean bComment = Boolean.FALSE;
     private Boolean bTravel = Boolean.FALSE;
-    private Boolean bSelectedForAttachement;
-    private Boolean bAttachement;
+    private Boolean bSelectedForAttachement = false;
+    private Boolean bAttachement = false;
     private LocalDate attachementNumber;
-    private Boolean remark;
+    private Boolean remark = false;
     private List<Product>setList;
     List<String>imageList;
     List<String>pdfList;
     List<ProductLink>linkDocumentList;
+    boolean boldMode = false;
 }

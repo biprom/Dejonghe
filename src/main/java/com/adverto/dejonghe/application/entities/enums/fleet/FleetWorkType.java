@@ -3,7 +3,8 @@ package com.adverto.dejonghe.application.entities.enums.fleet;
 public enum FleetWorkType {
     REGULAR ("Algemeen"),
     INTENS   ("Intensief"),
-    DELIVERY   ("Forfait / Afleveren")
+    DELIVERY   ("Forfait / Afleveren"),
+    NO_WORK   ("Geen kraanwerk")
     ;
 
     private final String discription;

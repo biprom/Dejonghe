@@ -62,6 +62,7 @@ public class EmployeeView extends Div implements BeforeEnterObserver {
     DatePicker dtDateOfBirth;
     DatePicker dtDateOfService;
     Checkbox checkbAlert;
+    Checkbox checkbTechnician;
 
     public EmployeeView(EmployeeService employeeService,
                         EmployeeRepo employeeRepo) {
@@ -134,6 +135,7 @@ public class EmployeeView extends Div implements BeforeEnterObserver {
         tfLastName = new TextField("Familienaam");
         tfAbbriviation = new TextField("Afkorting");
         tfPhone = new TextField("Telefoonnummer");
+        checkbTechnician = new Checkbox("Technieker?");
         tfAlertMesssage = new TextField("Alarmboodschap");
         checkbAlert = new Checkbox("Alarm");
         dtDateOfBirth = new DatePicker("Geboortedatum");
@@ -147,8 +149,12 @@ public class EmployeeView extends Div implements BeforeEnterObserver {
                 tfPhone,
                 dtDateOfBirth,
                 dtDateOfService,
+                checkbTechnician,
                 tfAlertMesssage,
-                checkbAlert);
+                checkbAlert,
+                tfAlertMesssage
+        );
+
         editorDiv.add(formLayout);
         createButtonLayout(editorLayoutDiv);
 
@@ -282,6 +288,8 @@ public class EmployeeView extends Div implements BeforeEnterObserver {
                 .bind(Employee::getPhoneNumber, Employee::setPhoneNumber);
         employeeBinder.forField(checkbAlert)
                 .bind(Employee::getAlert, Employee::setAlert);
+        employeeBinder.forField(checkbTechnician)
+                .bind(Employee::getTechnician, Employee::setTechnician);
         employeeBinder.forField(tfAlertMesssage)
                 .withNullRepresentation("")
                 .bind(Employee::getAlertMessage, Employee::setAlertMessage);

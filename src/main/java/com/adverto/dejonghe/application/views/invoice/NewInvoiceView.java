@@ -6,7 +6,6 @@ import com.adverto.dejonghe.application.dbservices.ProductService;
 import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.invoice.Invoice;
 import com.adverto.dejonghe.application.services.invoice.InvoiceServices;
 import com.adverto.dejonghe.application.views.subViews.SearchCustomerSubView;
@@ -50,8 +49,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@PageTitle("Facturatie")
-@Route("facturatie")
+@PageTitle("EindFacturatie")
+@Route("eindfacturatie")
 @Menu(order = 0, icon = LineAwesomeIconUrl.EURO_SIGN_SOLID)
 public class NewInvoiceView extends Div implements BeforeEnterObserver {
 
@@ -80,7 +79,6 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
     Span badge;
     TextField tfInvoiceNumber;
     DatePicker invoiceDatePicker;
-    ComboBox<InvoiceStatus> invoiceStatusComboBox;
     TextArea invoiceCommentTextArea;
 
     MultiFileMemoryBuffer buffer = new MultiFileMemoryBuffer();
@@ -200,9 +198,6 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         invoiceBinder.forField(addressComboBox)
                 .asRequired("Gelieve een adres te selecteren!")
                 .bind(Invoice::getWorkAddress, Invoice::setWorkAddress);
-        invoiceBinder.forField(invoiceStatusComboBox)
-                .asRequired("Gelieve een status te selecteren!")
-                .bind(Invoice::getInvoiceStatus, Invoice::setInvoiceStatus);
         invoiceBinder.forField(invoiceCommentTextArea)
                 .asRequired("Gelieve een omschrijving te geven!")
                 .bind(Invoice::getDiscription, Invoice::setDiscription);
@@ -257,7 +252,6 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         vLayout.add(getCustomerCard());
         vLayout.add(getInvoiceNumber());
         vLayout.add(getInvoiceDatePicker());
-        vLayout.add(getInvoiceStatusPicker());
         return vLayout;
     }
 
@@ -282,14 +276,6 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
         invoiceCommentTextArea.setWidth("100%");
         invoiceCommentTextArea.setHeight("200px");
         return invoiceCommentTextArea;
-    }
-
-    private ComboBox getInvoiceStatusPicker() {
-        invoiceStatusComboBox = new ComboBox<>();
-        invoiceStatusComboBox.setWidthFull();
-        invoiceStatusComboBox.setItems(InvoiceStatus.values());
-        invoiceStatusComboBox.setItemLabelGenerator(item -> item.getDiscription());
-        return invoiceStatusComboBox;
     }
 
     private DatePicker getInvoiceDatePicker() {
@@ -318,7 +304,7 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
     private TextField getInvoiceNumber() {
         tfInvoiceNumber = new TextField();
         tfInvoiceNumber.setWidthFull();
-        tfInvoiceNumber.setValue(String.valueOf(invoiceServices.getNewInvoiceNumber()));
+        tfInvoiceNumber.setValue(String.valueOf(invoiceServices.getNewProFormaInvoiceNumber()));
         return tfInvoiceNumber;
     }
 
@@ -478,8 +464,8 @@ public class NewInvoiceView extends Div implements BeforeEnterObserver {
     private void readNewInvoice() {
         Invoice newInvoice = new Invoice();
         newInvoice.setInvoiceDate(LocalDate.now());
-        newInvoice.setInvoiceStatus(InvoiceStatus.AANGEMAAKT);
-        newInvoice.setInvoiceNumber(invoiceServices.getNewInvoiceNumber());
+        newInvoice.setBFinalInvoice(false);
+        newInvoice.setInvoiceNumber(invoiceServices.getNewProFormaInvoiceNumber());
         selectedInvoice = newInvoice;
         invoiceBinder.readBean(selectedInvoice);
         selectProductSubView.setUserFunctionAndDocumentDate(UserFunction.ADMIN, selectedInvoice.getInvoiceDate());

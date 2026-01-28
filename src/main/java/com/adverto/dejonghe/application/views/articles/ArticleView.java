@@ -407,8 +407,8 @@ public class ArticleView extends Div implements BeforeEnterObserver {
                     Notification.show("Set is bewaard.");
                 }
                 catch (Exception e) {
-                    Notification notification = Notification.show("Gelieve eerst een set aan te duiden.");
-                    notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                    //Notification notification = Notification.show("Gelieve eerst een set aan te duiden.");
+                    //notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 }
             });
         });

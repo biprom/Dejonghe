@@ -7,7 +7,6 @@ import com.adverto.dejonghe.application.dbservices.ProductService;
 import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.employee.UserFunction;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.invoice.Invoice;
 import com.adverto.dejonghe.application.services.invoice.InvoiceServices;
 import com.adverto.dejonghe.application.views.subViews.SearchCustomerSubView;
@@ -52,6 +51,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 @PageTitle("FacturatieView")
@@ -95,8 +95,8 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
 
     Binder<Invoice>invoiceBinder;
 
-    Button generateInvoiceButton = new Button("maak factuur");
-    Button showPDFButton = new Button("bekijk PDF");
+    Button generateInvoiceButton = new Button("Maak factuur");
+    Button showPDFButton = new Button("Bekijk PDF");
 
     String linkParameter;
 
@@ -189,7 +189,11 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
                 selectedInvoice.setCustomer(selectedCustomer);
                 invoiceBinder.writeBean(selectedInvoice);
                 selectedInvoice.setProductList(selectProductSubView.getSelectedProductList());
+                selectedInvoice.setBFinalInvoice(true);
+                selectedInvoice.setOpen(true);
+                selectedInvoice.setFinalInvoiceNumber(invoiceServices.getNewFinalInvoiceNumber());
                 invoiceService.save(selectedInvoice);
+                UI.getCurrent().navigate(ProformaInvoiceView.class);
                 Notification.show("Deze factuur is afgewerkt");
             } catch (ValidationException e) {
                 Notification.show("Deze factuur kon niet worden afgewerkt.");
@@ -325,6 +329,10 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
 
     private Checkbox getToCheck() {
         checkbToCheck = new Checkbox("TE CONTROLEREN");
+        checkbToCheck.addValueChangeListener(event -> {
+            checkbApproved.setValue(false);
+            checkbRejected.setValue(false);
+        });
         return checkbToCheck;
     }
 
@@ -332,6 +340,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         checkbApproved = new Checkbox("GOEDGEKEURD");
         checkbApproved.addValueChangeListener(value -> {
             if(value.getValue()){
+                checkbToCheck.setValue(false);
                 checkbRejected.setValue(false);
             }
         });
@@ -342,6 +351,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
         checkbRejected = new Checkbox("AFGEKEURD");
         checkbRejected.addValueChangeListener(value -> {
             if(value.getValue()){
+                checkbToCheck.setValue(false);
                 checkbApproved.setValue(false);
             }
         });
@@ -374,6 +384,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     private DatePicker getInvoiceDatePicker() {
         invoiceDatePicker = new DatePicker();
         invoiceDatePicker.setSizeFull();
+        invoiceDatePicker.setLocale(Locale.FRENCH);
         invoiceDatePicker.setValue(LocalDate.now());
         invoiceDatePicker.addValueChangeListener(event -> {
             expiryDatePicker.setValue(event.getValue().plusDays(14));
@@ -384,6 +395,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     private DatePicker getExpiryDatePicker() {
         expiryDatePicker = new DatePicker();
         expiryDatePicker.setSizeFull();
+        expiryDatePicker.setLocale(Locale.FRENCH);
         expiryDatePicker.setValue(LocalDate.now().plusDays(14));
         return expiryDatePicker;
     }
@@ -404,7 +416,7 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     private TextField getInvoiceNumber() {
         tfInvoiceNumber = new TextField();
         tfInvoiceNumber.setWidthFull();
-        tfInvoiceNumber.setValue(String.valueOf(invoiceServices.getNewInvoiceNumber()));
+        tfInvoiceNumber.setValue(String.valueOf(invoiceServices.getNewProFormaInvoiceNumber()));
         return tfInvoiceNumber;
     }
 
@@ -556,8 +568,8 @@ public class InvoiceView extends Div implements HasUrlParameter<String> {
     private void readNewInvoice() {
         Invoice newInvoice = new Invoice();
         newInvoice.setInvoiceDate(LocalDate.now());
-        newInvoice.setInvoiceStatus(InvoiceStatus.AANGEMAAKT);
-        newInvoice.setInvoiceNumber(invoiceServices.getNewInvoiceNumber());
+        newInvoice.setBFinalInvoice(false);
+        newInvoice.setInvoiceNumber(invoiceServices.getNewProFormaInvoiceNumber());
         selectedInvoice = newInvoice;
         invoiceBinder.readBean(selectedInvoice);
         customerCard.removeAll();

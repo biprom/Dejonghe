@@ -261,7 +261,6 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
             }
             TreeDataProvider<WorkOrder> dataProvider = new TreeDataProvider<>(treeData);
             pendingWorkOrdersGrid.setDataProvider(dataProvider);
-
         }
         else{
             pendingWorkOrdersGrid.setVisible(false);
@@ -432,16 +431,19 @@ public class CurrentWorkOrdersSubView extends VerticalLayout implements BeforeEn
 
     public List<WorkOrder> getSelectedBundeledWorkOrders() {
         workOrderBundleList.clear();
-        List<WorkOrder>selectedChildren = treeData.getChildren(selectedWorkOrder);
-        if(selectedChildren != null){
-            workOrderBundleList.add(selectedWorkOrder);
-            workOrderBundleList.addAll(selectedChildren);
-            return workOrderBundleList;
+        for(WorkOrder workOrder : pendingWorkOrdersGrid.getSelectedItems()){
+            List<WorkOrder>selectedChildren = treeData.getChildren(workOrder);
+            if(selectedChildren != null){
+                workOrderBundleList.add(workOrder);
+                workOrderBundleList.addAll(selectedChildren);
+                return workOrderBundleList;
+            }
+            else{
+                workOrderBundleList.add(workOrder);
+                return (workOrderBundleList);
+            }
         }
-        else{
-            workOrderBundleList.add(selectedWorkOrder);
-            return (workOrderBundleList);
-        }
+        return workOrderBundleList;
     }
 
     public Optional<Set<WorkOrder>> getSelectedWorkOrders(){

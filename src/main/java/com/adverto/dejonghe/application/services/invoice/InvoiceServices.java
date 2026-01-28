@@ -11,7 +11,6 @@ import com.adverto.dejonghe.application.entities.customers.Address;
 import com.adverto.dejonghe.application.entities.customers.Customer;
 import com.adverto.dejonghe.application.entities.enums.fleet.Fleet;
 import com.adverto.dejonghe.application.entities.enums.fleet.FleetWorkType;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.enums.product.VAT;
 import com.adverto.dejonghe.application.entities.enums.workorder.WorkLocation;
 import com.adverto.dejonghe.application.entities.enums.workorder.WorkType;
@@ -32,7 +31,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -62,13 +60,23 @@ public class InvoiceServices {
 
     List<String>attachementNames = new ArrayList<>();
 
-    public Integer getNewInvoiceNumber() {
-        Optional<Invoice> optionalInvoice = invoiceService.getLastInvoice();
+    public Integer getNewProFormaInvoiceNumber() {
+        Optional<Invoice> optionalInvoice = invoiceService.getLastProFormaInvoice();
         if(!optionalInvoice.isEmpty()){
             return Integer.valueOf(optionalInvoice.get().getInvoiceNumber()+1);
         }
         else{
-            return 250001;
+            return 260001;
+        }
+    }
+
+    public Integer getNewFinalInvoiceNumber() {
+        Optional<Invoice> optionalInvoice = invoiceService.getLastFinalInvoice();
+        if(!optionalInvoice.isEmpty()){
+            return Integer.valueOf(optionalInvoice.get().getFinalInvoiceNumber()+1);
+        }
+        else{
+            return 260001;
         }
     }
 
@@ -118,22 +126,35 @@ public class InvoiceServices {
                 parts.add(part);
             }
         }
-
         return parts;
     }
 
     public Invoice generateMergedInvoice(Set<WorkOrder> workOrderSet){
         Invoice invoice = new Invoice();
-        invoice.setInvoiceNumber(getNewInvoiceNumber());
+        invoice.setInvoiceNumber(getNewProFormaInvoiceNumber());
         invoice.setInvoiceDate(LocalDate.now());
         invoice.setExpiryDate(LocalDate.now().plusDays(14));
-        invoice.setInvoiceStatus(InvoiceStatus.PROFORMA);
+        invoice.setBFinalInvoice(false);
 
         Address workAddress = workOrderSet.stream().findFirst().get().getWorkAddress();
         invoice.setWorkAddress(workAddress);
 
         Optional<List<Customer>> optCustomer = customerService.getCustomerByWorkAddress(workAddress);
-        if(!optCustomer.isEmpty()){
+        if(optCustomer.isEmpty()){
+            Customer customer = new Customer();
+            customer.setId(LocalDateTime.now().toString());
+            customer.setName(workAddress.getAddressName());
+            customer.setVatNumber("");
+            customer.setComment("");
+            customer.setAlertMessage("");
+            customer.setAlert(false);
+            List<Address>addressList = new ArrayList<>();
+            Address address = new Address();
+            addressList.add(address);
+            customer.setAddresses(addressList);
+            optCustomer = Optional.of(List.of(customer));
+        }
+        else{
             if(optCustomer.get().size() >= 2){
                 Notification.show("Er zijn meerdere klanten met hetzelfde Werkadres");
             }
@@ -220,6 +241,7 @@ public class InvoiceServices {
                         if(i == 3){
                             numberOfTechnicians = numberOfTechnicians+ 1 + workOrder.getExtraEmployeesTeam4().size();
                         }
+
                         if((workOrder.getWorkLocation().equals(WorkLocation.ON_THE_MOVE)) && (workOrderHeader.getWorkType() == WorkType.GENERAL)){
                             for(WorkOrderTime workOrderTime : workOrderHeader.getWorkOrderTimeList()){
                                 generalHoursOnTheMove = generalHoursOnTheMove + numberOfTechnicians * (((Duration.between(workOrderTime.getTimeUp(), workOrderTime.getTimeDown()).toMinutes())-workOrderTime.getPauze())/60.0);
@@ -371,8 +393,11 @@ public class InvoiceServices {
 
             // add movement to Proforma
             Double amountKmRegular = 0.0;
+            Integer amountRidesRegular = 0;
             Double amountKmTrailer = 0.0;
+            Integer amountRidesTrailer = 0;
             Double amountKmCrane = 0.0;
+            Integer amountRidesCrane = 0;
             Double amountHoursCraneRegular = 0.0;
             Double amountHoursCraneIntens = 0.0;
             Integer amountForfait = 0;
@@ -382,12 +407,15 @@ public class InvoiceServices {
                     if((workAddress.getDistance() != null) && (((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.VAN))) ||
                             ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.ATEGO))))){
                         amountKmRegular = amountKmRegular + (workAddress.getDistance());
+                        amountRidesRegular = amountRidesRegular + 1;
                     }
                     if((workAddress.getDistance() != null) && (workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_TRAILER))){
                         amountKmTrailer = amountKmTrailer + (workAddress.getDistance());
+                        amountRidesTrailer = amountRidesTrailer + 1;
                     }
                     if((workAddress.getDistance() != null) && (workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_CRANE))){
                         amountKmCrane = amountKmCrane + (workAddress.getDistance());
+                        amountRidesCrane = amountRidesCrane + 1;
                         if(workOrderHeader.getFleetWorkType().equals(FleetWorkType.DELIVERY)){
                             amountForfait = ++amountForfait;
                         }
@@ -410,12 +438,15 @@ public class InvoiceServices {
                     regularKm.setTotalPrice(amountKmRegular*regularKm.getSellPriceIndustry());
                     regularKm.setBTravel(true);
                     regularKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        regularKm.setInternalName(regularKm.getInternalName() + "("+ amountRidesRegular + " x heen en terug)");
+                    }
                     allProducts.add(regularKm);
                 }
                 if(amountKmTrailer > 0.0){
                     Product forfaitTtrailer = productService.getWorkHoursTrailerForfait().get();
                     forfaitTtrailer.setSelectedAmount(1.0);
-                    forfaitTtrailer.setTotalPrice(amountKmTrailer*forfaitTtrailer.getSellPriceIndustry());
+                    forfaitTtrailer.setTotalPrice(forfaitTtrailer.getSellPriceIndustry());
                     forfaitTtrailer.setBTravel(true);
                     forfaitTtrailer.setTeamNumber(0);
                     allProducts.add(forfaitTtrailer);
@@ -425,6 +456,9 @@ public class InvoiceServices {
                     trailerKm.setTotalPrice(amountKmTrailer*trailerKm.getSellPriceIndustry());
                     trailerKm.setBTravel(true);
                     trailerKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        trailerKm.setInternalName(trailerKm.getInternalName() + "("+ amountRidesTrailer + " x heen en terug)");
+                    }
                     allProducts.add(trailerKm);
                 }
                 if(amountKmCrane > 0.0){
@@ -433,9 +467,12 @@ public class InvoiceServices {
                     craneKm.setTotalPrice(amountKmCrane*craneKm.getSellPriceIndustry());
                     craneKm.setBTravel(true);
                     craneKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        craneKm.setInternalName(craneKm.getInternalName() + "("+ amountRidesCrane + " x heen en terug)");
+                    }
                     allProducts.add(craneKm);
                 }
-                if(amountHoursCraneRegular > 0.0){
+                if((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular >= 3.0)){
                     Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                     hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
                     hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular*hoursCraneRegularIndustry.getSellPriceIndustry());
@@ -443,10 +480,26 @@ public class InvoiceServices {
                     hoursCraneRegularIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneRegularIndustry);
                 }
-                if(amountHoursCraneIntens > 0.0){
+                else if((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular < 3.0)){
+                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
+                    hoursCraneRegularIndustry.setSelectedAmount(3.0);
+                    hoursCraneRegularIndustry.setTotalPrice(3.0*hoursCraneRegularIndustry.getSellPriceIndustry());
+                    hoursCraneRegularIndustry.setBTravel(true);
+                    hoursCraneRegularIndustry.setTeamNumber(0);
+                    allProducts.add(hoursCraneRegularIndustry);
+                }
+                else if((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens >= 4.0)){
                     Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                     hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
                     hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens*hoursCraneIntenseIndustry.getSellPriceIndustry());
+                    hoursCraneIntenseIndustry.setBTravel(true);
+                    hoursCraneIntenseIndustry.setTeamNumber(0);
+                    allProducts.add(hoursCraneIntenseIndustry);
+                }
+                else if((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens < 4.0)){
+                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
+                    hoursCraneIntenseIndustry.setSelectedAmount(4.0);
+                    hoursCraneIntenseIndustry.setTotalPrice(4.0*hoursCraneIntenseIndustry.getSellPriceIndustry());
                     hoursCraneIntenseIndustry.setBTravel(true);
                     hoursCraneIntenseIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneIntenseIndustry);
@@ -467,6 +520,9 @@ public class InvoiceServices {
                     regularKm.setTotalPrice(amountKmRegular*regularKm.getSellPrice());
                     regularKm.setBTravel(true);
                     regularKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        regularKm.setInternalName(regularKm.getInternalName() + "("+ amountRidesRegular + " x heen en terug)");
+                    }
                     allProducts.add(regularKm);
                 }
                 if(amountKmTrailer > 0.0){
@@ -483,6 +539,9 @@ public class InvoiceServices {
                     trailerKm.setTotalPrice(amountKmTrailer*trailerKm.getSellPrice());
                     trailerKm.setBTravel(true);
                     trailerKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        trailerKm.setInternalName(trailerKm.getInternalName() + "("+ amountRidesTrailer + " x heen en terug)");
+                    }
                     allProducts.add(trailerKm);
                 }
                 if(amountKmCrane > 0.0){
@@ -491,9 +550,12 @@ public class InvoiceServices {
                     craneKm.setTotalPrice(amountKmCrane*craneKm.getSellPrice());
                     craneKm.setBTravel(true);
                     craneKm.setTeamNumber(0);
+                    if(amountRidesRegular > 1) {
+                        craneKm.setInternalName(craneKm.getInternalName() + "("+ amountRidesCrane + " x heen en terug)");
+                    }
                     allProducts.add(craneKm);
                 }
-                if(amountHoursCraneRegular > 0.0){
+                if((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular >= 3.0)){
                     Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                     hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
                     hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular*hoursCraneRegularIndustry.getSellPrice());
@@ -501,10 +563,26 @@ public class InvoiceServices {
                     hoursCraneRegularIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneRegularIndustry);
                 }
-                if(amountHoursCraneIntens > 0.0){
+                else if((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular < 3.0)){
+                    Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
+                    hoursCraneRegularIndustry.setSelectedAmount(3.0);
+                    hoursCraneRegularIndustry.setTotalPrice(3.0*hoursCraneRegularIndustry.getSellPrice());
+                    hoursCraneRegularIndustry.setBTravel(true);
+                    hoursCraneRegularIndustry.setTeamNumber(0);
+                    allProducts.add(hoursCraneRegularIndustry);
+                }
+                else if((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens >= 4.0)){
                     Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                     hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
                     hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens*hoursCraneIntenseIndustry.getSellPrice());
+                    hoursCraneIntenseIndustry.setBTravel(true);
+                    hoursCraneIntenseIndustry.setTeamNumber(0);
+                    allProducts.add(hoursCraneIntenseIndustry);
+                }
+                else if((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens < 4.0)){
+                    Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
+                    hoursCraneIntenseIndustry.setSelectedAmount(4.0);
+                    hoursCraneIntenseIndustry.setTotalPrice(4.0*hoursCraneIntenseIndustry.getSellPrice());
                     hoursCraneIntenseIndustry.setBTravel(true);
                     hoursCraneIntenseIndustry.setTeamNumber(0);
                     allProducts.add(hoursCraneIntenseIndustry);
@@ -599,8 +677,12 @@ public class InvoiceServices {
                             tunnelTax = 0.0;
                         }
                     }
-                    totalTax += roadTax;
-                    totalTunnelTax += tunnelTax;
+                    if(roadTax != null){
+                        totalTax += roadTax;
+                    }
+                    if(tunnelTax != null){
+                        totalTunnelTax += tunnelTax;
+                    }
                 }
             }
 
@@ -635,23 +717,36 @@ public class InvoiceServices {
 
             invoice.setProductList(allProducts);
             checkIfToolsHoursAreSubtractedFromWorkOrder(invoice);
-
         }
         return invoice;
     }
 
     public Invoice getnerateInvoicePerDay(Set<WorkOrder> workOrderSet) {
         Invoice invoice = new Invoice();
-        invoice.setInvoiceNumber(getNewInvoiceNumber());
+        invoice.setInvoiceNumber(getNewProFormaInvoiceNumber());
         invoice.setInvoiceDate(LocalDate.now());
         invoice.setExpiryDate(LocalDate.now().plusDays(14));
-        invoice.setInvoiceStatus(InvoiceStatus.PROFORMA);
+        invoice.setBFinalInvoice(false);
 
         Address workAddress = workOrderSet.stream().findFirst().get().getWorkAddress();
         invoice.setWorkAddress(workAddress);
-
-        Optional<List<Customer>> optCustomer = customerService.getCustomerByWorkAddress(workAddress);
-        if (!optCustomer.isEmpty()) {
+        Optional<List<Customer>> optCustomer = customerService.getCustomerByWorkAddress(workAddress)
+        ;
+        if(optCustomer.isEmpty()){
+            Customer customer = new Customer();
+            customer.setId(LocalDateTime.now().toString());
+            customer.setName(workAddress.getAddressName());
+            customer.setVatNumber("");
+            customer.setComment("");
+            customer.setAlertMessage("");
+            customer.setAlert(false);
+            List<Address>addressList = new ArrayList<>();
+            Address address = new Address();
+            addressList.add(address);
+            customer.setAddresses(addressList);
+            optCustomer = Optional.of(List.of(customer));
+        }
+        else {
             if (optCustomer.get().size() >= 2) {
                 Notification.show("Er zijn meerdere klanten met hetzelfde Werkadres");
             }
@@ -903,8 +998,11 @@ public class InvoiceServices {
 
                 // add movement to Proforma
                 Double amountKmRegular = 0.0;
+                Integer amountRidesRegular = 0;
                 Double amountKmTrailer = 0.0;
+                Integer amountRidesTrailer = 0;
                 Double amountKmCrane = 0.0;
+                Integer amountRidesCrane = 0;
                 Double amountHoursCraneRegular = 0.0;
                 Double amountHoursCraneIntens = 0.0;
                 Integer amountForfait = 0;
@@ -914,12 +1012,15 @@ public class InvoiceServices {
                     if ((workAddress.getDistance() != null) && ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.VAN))) ||
                             ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.ATEGO)))) {
                         amountKmRegular = amountKmRegular + (workAddress.getDistance());
+                        amountRidesRegular = amountRidesRegular + 1;
                     }
                     if ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_TRAILER))) {
                         amountKmTrailer = amountKmTrailer + (workAddress.getDistance());
+                        amountRidesTrailer = amountRidesTrailer + 1;
                     }
                     if ((workOrderHeader.getFleet() != null) && (workOrderHeader.getFleet().equals(Fleet.TRUCK_CRANE))) {
                         amountKmCrane = amountKmCrane + (workAddress.getDistance());
+                        amountRidesCrane = amountRidesCrane + 1;
                         if (workOrderHeader.getFleetWorkType().equals(FleetWorkType.DELIVERY)) {
                             amountForfait = ++amountForfait;
                         }
@@ -943,12 +1044,14 @@ public class InvoiceServices {
                         regularKm.setTeamNumber(0);
                         regularKm.setBTravel(true);
                         regularKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesRegular > 1) {
+                            regularKm.setInternalName(regularKm.getInternalName() + "("+ amountRidesRegular + " x heen en terug)");
+                        }
                         allProducts.add(regularKm);
                     }
                     if (amountKmTrailer > 0.0) {
-
                         Product forfaitTrailer = productService.getWorkHoursTrailerForfait().get();
-                        forfaitTrailer.setSelectedAmount(amountKmTrailer);
+                        forfaitTrailer.setSelectedAmount(1.0);
                         forfaitTrailer.setTotalPrice(forfaitTrailer.getSellPriceIndustry());
                         forfaitTrailer.setTeamNumber(0);
                         forfaitTrailer.setBTravel(true);
@@ -961,6 +1064,9 @@ public class InvoiceServices {
                         trailerKm.setTeamNumber(0);
                         trailerKm.setBTravel(true);
                         trailerKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesTrailer > 1) {
+                            trailerKm.setInternalName(trailerKm.getInternalName() + "("+ amountRidesTrailer + " x heen en terug)");
+                        }
                         allProducts.add(trailerKm);
                     }
                     if (amountKmCrane > 0.0) {
@@ -970,9 +1076,12 @@ public class InvoiceServices {
                         craneKm.setTeamNumber(0);
                         craneKm.setBTravel(true);
                         craneKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesCrane > 1) {
+                            craneKm.setInternalName(craneKm.getInternalName() + "("+ amountRidesCrane + " x heen en terug)");
+                        }
                         allProducts.add(craneKm);
                     }
-                    if (amountHoursCraneRegular > 0.0) {
+                    if ((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular >= 3.0)) {
                         Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                         hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
                         hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular * hoursCraneRegularIndustry.getSellPriceIndustry());
@@ -981,10 +1090,28 @@ public class InvoiceServices {
                         hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneRegularIndustry);
                     }
-                    if (amountHoursCraneIntens > 0.0) {
+                    else if ((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular < 3.0)) {
+                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
+                        hoursCraneRegularIndustry.setSelectedAmount(3.0);
+                        hoursCraneRegularIndustry.setTotalPrice(3.0 * hoursCraneRegularIndustry.getSellPriceIndustry());
+                        hoursCraneRegularIndustry.setTeamNumber(0);
+                        hoursCraneRegularIndustry.setBTravel(true);
+                        hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(hoursCraneRegularIndustry);
+                    }
+                    else if ((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens >= 4.0)) {
                         Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                         hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
                         hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens * hoursCraneIntenseIndustry.getSellPriceIndustry());
+                        hoursCraneIntenseIndustry.setTeamNumber(0);
+                        hoursCraneIntenseIndustry.setBTravel(true);
+                        hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(hoursCraneIntenseIndustry);
+                    }
+                    else if ((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens < 4.0)) {
+                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
+                        hoursCraneIntenseIndustry.setSelectedAmount(4.0);
+                        hoursCraneIntenseIndustry.setTotalPrice(4.0 * hoursCraneIntenseIndustry.getSellPriceIndustry());
                         hoursCraneIntenseIndustry.setTeamNumber(0);
                         hoursCraneIntenseIndustry.setBTravel(true);
                         hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
@@ -1007,6 +1134,9 @@ public class InvoiceServices {
                         regularKm.setTeamNumber(0);
                         regularKm.setBTravel(true);
                         regularKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesRegular > 1) {
+                            regularKm.setInternalName(regularKm.getInternalName() + "("+ amountRidesRegular + " x heen en terug)");
+                        }
                         allProducts.add(regularKm);
                     }
                     if (amountKmTrailer > 0.0) {
@@ -1026,6 +1156,9 @@ public class InvoiceServices {
                         trailerKm.setTeamNumber(0);
                         trailerKm.setBTravel(true);
                         trailerKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesTrailer > 1) {
+                            trailerKm.setInternalName(trailerKm.getInternalName() + "("+ amountRidesTrailer + " x heen en terug)");
+                        }
                         allProducts.add(trailerKm);
                     }
                     if (amountKmCrane > 0.0) {
@@ -1035,9 +1168,12 @@ public class InvoiceServices {
                         craneKm.setTeamNumber(0);
                         craneKm.setBTravel(true);
                         craneKm.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        if(amountRidesCrane > 1) {
+                            craneKm.setInternalName(craneKm.getInternalName() + "("+ amountRidesCrane + " x heen en terug)");
+                        }
                         allProducts.add(craneKm);
                     }
-                    if (amountHoursCraneRegular > 0.0) {
+                    if ((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular >= 3.0)) {
                         Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
                         hoursCraneRegularIndustry.setSelectedAmount(amountHoursCraneRegular);
                         hoursCraneRegularIndustry.setTotalPrice(amountHoursCraneRegular * hoursCraneRegularIndustry.getSellPrice());
@@ -1046,10 +1182,28 @@ public class InvoiceServices {
                         hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
                         allProducts.add(hoursCraneRegularIndustry);
                     }
-                    if (amountHoursCraneIntens > 0.0) {
+                    else if ((amountHoursCraneRegular > 0.0) && (amountHoursCraneRegular < 3.0)) {
+                        Product hoursCraneRegularIndustry = productService.getWorkHoursCraneRegular().get();
+                        hoursCraneRegularIndustry.setSelectedAmount(3.0);
+                        hoursCraneRegularIndustry.setTotalPrice(3.0 * hoursCraneRegularIndustry.getSellPrice());
+                        hoursCraneRegularIndustry.setTeamNumber(0);
+                        hoursCraneRegularIndustry.setBTravel(true);
+                        hoursCraneRegularIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(hoursCraneRegularIndustry);
+                    }
+                    else if ((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens >= 4.0)) {
                         Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
                         hoursCraneIntenseIndustry.setSelectedAmount(amountHoursCraneIntens);
                         hoursCraneIntenseIndustry.setTotalPrice(amountHoursCraneIntens * hoursCraneIntenseIndustry.getSellPrice());
+                        hoursCraneIntenseIndustry.setTeamNumber(0);
+                        hoursCraneIntenseIndustry.setBTravel(true);
+                        hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
+                        allProducts.add(hoursCraneIntenseIndustry);
+                    }
+                    else if ((amountHoursCraneIntens > 0.0) && (amountHoursCraneIntens < 4.0)) {
+                        Product hoursCraneIntenseIndustry = productService.getWorkHoursCraneIntense().get();
+                        hoursCraneIntenseIndustry.setSelectedAmount(4.0);
+                        hoursCraneIntenseIndustry.setTotalPrice(4.0 * hoursCraneIntenseIndustry.getSellPrice());
                         hoursCraneIntenseIndustry.setTeamNumber(0);
                         hoursCraneIntenseIndustry.setBTravel(true);
                         hoursCraneIntenseIndustry.setDate(workOrder.getWorkDateTime().toLocalDate());
@@ -1283,7 +1437,12 @@ public class InvoiceServices {
         }
 
         try {
-            parameters.put("factuurNummer", invoice.getInvoiceNumber().toString());
+            if(invoice.getBFinalInvoice() != null){
+                parameters.put("factuurNummer", invoice.getInvoiceNumber().toString());
+            }
+            else{
+                parameters.put("factuurNummer", invoice.getFinalInvoiceNumber().toString());
+            }
         }
         catch (Exception e){
             Notification.show("Gelieve voor een volledige BTW nummer te zorgen aub");
@@ -1314,12 +1473,9 @@ public class InvoiceServices {
             }
         }
 
-        //reverse collection so it becomes sorted on the PDF
-        List<Product>reversedProductList = new ArrayList<>(invoice.getProductList());
+        List<Product>totalProductList = new ArrayList<>(invoice.getProductList());
 
-        Collections.reverse(reversedProductList);
-
-        List<Product> attachments = reversedProductList.stream()
+        List<Product> attachments = totalProductList.stream()
                 .filter(product -> {
                     if((product.getBAttachement() == null) || (product.getBAttachement() == false)){
                         return false;
@@ -1330,7 +1486,8 @@ public class InvoiceServices {
                 })
                 .collect(Collectors.toList());
 
-        List<Product> products = reversedProductList.stream()
+
+        List<Product> products = totalProductList.stream()
                 .filter(product -> {
                     if((product.getBAttachement() == null) || (product.getBAttachement() == false)){
                         return true;
@@ -1363,22 +1520,35 @@ public class InvoiceServices {
                         .sum());
                 pointerProduct.setVat(attachments.get(0).getVat());
                 pointerProduct.setInternalName("materiaal (zie bijlage)");
-                OptionalInt indexOpt =
+                OptionalInt indexWorkHoursOpt =
                         IntStream.range(0, products.size())
                                 .filter(i -> products.get(i).getBWorkHour() != null)
                                 .filter(i -> (products.get(i).getBWorkHour()) && (products.get(i).getDate() != null) && (products.get(i).getDate().equals(uniqueDate)))
                                 .reduce((first, second) -> second);
 
-                if (indexOpt.isPresent()) {
-                    int index = indexOpt.getAsInt();
+                OptionalInt indexCommentOpt =
+                        IntStream.range(0, products.size())
+                            .filter(i -> products.get(i).getBComment() != null)
+                            .filter(i -> (products.get(i).getBComment()) && (products.get(i).getDate() != null) && (products.get(i).getDate().equals(uniqueDate)))
+                            .reduce((first, second) -> second);
+
+
+                if (indexWorkHoursOpt.isPresent()) {
+                    int index = indexWorkHoursOpt.getAsInt();
                     products.add(index + 1, pointerProduct);
-                } else {
-                    products.add(pointerProduct);
+                } else if (indexCommentOpt.isPresent()) {
+                    int index = indexCommentOpt.getAsInt();
+                    products.add(index + 1, pointerProduct);
+                }
+                else{
+                    products.add( pointerProduct);
                 }
 
             }
         }
-        DataImplementation dataImplementation = new DataImplementation(products);
+
+        Collections.reverse(products);
+        DataImplementation dataImplementation = new DataImplementation(products,invoice.getCustomer());
 
         parameters.put( "ItemDataSource", dataImplementation );
         parameters.put("netto",invoice.getProductList().stream()
@@ -1423,14 +1593,14 @@ public class InvoiceServices {
 
             attachementNames.clear();
             for(LocalDate date : uniqueDates){
-                generateAttachement(date, invoice.getInvoiceNumber(),attachments.stream().filter(product -> product.getAttachementNumber().equals(date)).collect(Collectors.toList()), attachementNumber);
+                generateAttachement(date, invoice,attachments.stream().filter(product -> product.getAttachementNumber().equals(date)).collect(Collectors.toList()), attachementNumber);
                 UI.getCurrent().getPage().open("/attachement/" + attachementNumber, "_blank");
                 attachementNumber++;
             }
         }
     }
 
-    private void generateAttachement(LocalDate datum, Integer invoiceNumber, List<Product> attachments, Integer attachementNumber) {
+    private void generateAttachement(LocalDate datum, Invoice invoice, List<Product> attachments, Integer attachementNumber) {
         JasperReport jasperReportAttachement = null;
         JasperPrint jasperPrintAttachement = null;
 
@@ -1445,7 +1615,7 @@ public class InvoiceServices {
         parameters.clear();
 
         try {
-            parameters.put("factuurNummer", String.valueOf(invoiceNumber));
+            parameters.put("factuurNummer", String.valueOf(invoice.getInvoiceNumber()));
         }
         catch (Exception e){
             Notification.show("Gelieve voor een klantnaam in te geven aub");
@@ -1457,7 +1627,7 @@ public class InvoiceServices {
         catch (Exception e){
             Notification.show("Gelieve een bijlagenaam in te geven aub");
         }
-        DataImplementation dataImplementation = new DataImplementation(attachments);
+        DataImplementation dataImplementation = new DataImplementation(attachments,invoice.getCustomer());
         parameters.put( "ItemDataSource", dataImplementation );
 
         try {

@@ -9,11 +9,13 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ProductService {
@@ -22,6 +24,8 @@ public class ProductService {
 
     @Autowired
     MongoTemplate mongoTemplate;
+
+    List<Product> elements = new ArrayList<>();
 
     public Optional<List<Product>>findByProductCodeContaining(String productCode) {
         Optional<List<Product>> optionalProducts = Optional.of(productRepo.findByProductCodeContainsIgnoreCase(productCode));
@@ -205,7 +209,7 @@ public class ProductService {
 
 
     public Optional<Product> getWorkhourForCentrifugeLocal(){
-        return productRepo.findByProductCodeEqualsIgnoreCase("WU-CEN-AT-").stream().findFirst();
+        return productRepo.findByProductCodeEqualsIgnoreCase("WU-CEN-AT").stream().findFirst();
     }
     public Optional<Product> getWorkhourForCentrifugeOnTheMove(){
         return productRepo.findByProductCodeEqualsIgnoreCase("WU-CEN-VERP").stream().findFirst();
@@ -287,4 +291,93 @@ public class ProductService {
         }
     }
 
+    public Optional<List<Product>> findSetsWithThisElement(Product selectedProduct) {
+        elements.clear();
+        List<Product> setList = productRepo.findBySet(true);
+        if((setList != null) && (setList.size() > 0)) {
+            for(Product set : setList) {
+                if((set.getSetList() != null) && (set.getSetList().size() > 0)){
+                    List<Product> elementsWithSameCode = set.getSetList().stream().filter(item -> item.getProductCode().equalsIgnoreCase(selectedProduct.getProductCode())).collect(Collectors.toList());
+                    if((elementsWithSameCode != null) && (elementsWithSameCode.size() > 0)) {
+                        List<Product> returnValues = elementsWithSameCode.stream()
+                                .filter(p -> matchesLevel(p, selectedProduct.getProductLevel1(),
+                                        selectedProduct.getProductLevel2(),
+                                        selectedProduct.getProductLevel3(),
+                                        selectedProduct.getProductLevel4(),
+                                        selectedProduct.getProductLevel5(),
+                                        selectedProduct.getProductLevel6(),
+                                        selectedProduct.getProductLevel7()
+                                        ))
+                                .toList();
+                        if((returnValues != null) && (returnValues.size() > 0)) {
+                            elements.add(set);
+                        }
+                    }
+                }
+            }
+            return Optional.of(elements);
+        }
+        else return Optional.empty();
+    }
+
+    public boolean matchesLevel(Product product,
+                                ProductLevel1 l1,
+                                ProductLevel2 l2,
+                                ProductLevel3 l3,
+                                ProductLevel4 l4,
+                                ProductLevel5 l5,
+                                ProductLevel6 l6,
+                                ProductLevel7 l7) {
+
+        if (l1 != null) {
+            if (product.getProductLevel1() == null ||
+                    !product.getProductLevel1().getId().equals(l1.getId())) {
+                return false;
+            }
+        }
+
+        if (l2 != null) {
+            if (product.getProductLevel2() == null ||
+                    !product.getProductLevel2().getId().equals(l2.getId())) {
+                return false;
+            }
+        }
+
+        if (l3 != null) {
+            if (product.getProductLevel3() == null ||
+                    !product.getProductLevel3().getId().equals(l3.getId())) {
+                return false;
+            }
+        }
+
+        if (l4 != null) {
+            if (product.getProductLevel4() == null ||
+                    !product.getProductLevel4().getId().equals(l4.getId())) {
+                return false;
+            }
+        }
+
+        if (l5 != null) {
+            if (product.getProductLevel5() == null ||
+                    !product.getProductLevel5().getId().equals(l5.getId())) {
+                return false;
+            }
+        }
+
+        if (l6 != null) {
+            if (product.getProductLevel6() == null ||
+                    !product.getProductLevel6().getId().equals(l6.getId())) {
+                return false;
+            }
+        }
+
+        if (l7 != null) {
+            if (product.getProductLevel7() == null ||
+                    !product.getProductLevel7().getId().equals(l7.getId())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

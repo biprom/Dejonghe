@@ -2,13 +2,17 @@ package com.adverto.dejonghe.application.views.subViews;
 
 import com.adverto.dejonghe.application.customEvents.GetSelectedInvoiceEvent;
 import com.adverto.dejonghe.application.dbservices.InvoiceService;
+import com.adverto.dejonghe.application.entities.enums.invoice.FINAL_INVOICE_STATUS;
 import com.adverto.dejonghe.application.entities.invoice.Invoice;
+import com.adverto.dejonghe.application.entities.product.product.Product;
 import com.adverto.dejonghe.application.services.invoice.InvoiceServices;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -25,11 +29,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.vaadin.flow.component.button.ButtonVariant.LUMO_TERTIARY_INLINE;
@@ -47,15 +51,23 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
     List<Invoice> filteredInvoices;
     HeaderRow headerRow;
 
-    Checkbox filterToCheck;
-    Checkbox filterApproved;
-    Checkbox filterRejected;
+    ComboBox<String> proformaStatusFilter;
+    ComboBox<FINAL_INVOICE_STATUS> finalStatusFilter;
     TextField filterSubject;
     TextField filterName;
     TextField filterResponsible;
 
     Invoice selectedInvoice;
     Notification deleteInvoiceNotification;
+
+    Grid.Column<Invoice> columnProformaStatus;
+    Grid.Column<Invoice> columnFinalStatus;
+    Grid.Column<Invoice> removeColumn;
+    Grid.Column<Invoice> columnInvoicePaydate;
+    Grid.Column<Invoice> columnInvoiceEndDate;
+    Grid.Column<Invoice> totalPriceColumn;
+    Grid.Column<Invoice> vatColumn;
+    Grid.Column<Invoice> totalAndVatColumn;
 
 
     @Autowired
@@ -73,11 +85,10 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
 
     private void setUpfilters() {
 
-        filteredInvoices = new ArrayList<>();
+        proformaStatusFilter = new ComboBox<>();
+        finalStatusFilter = new ComboBox<>();
 
-        filterToCheck = new Checkbox();
-        filterApproved = new Checkbox();
-        filterRejected = new Checkbox();
+        filteredInvoices = new ArrayList<>();
 
         filterSubject = new TextField();
         filterSubject.setPlaceholder("Commentaar");
@@ -86,50 +97,81 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
         filterResponsible.setPlaceholder("Verantwoordelijk");
 
         filterName = new TextField();
+        filterName.setWidth("100%");
         filterName.setPlaceholder("Werfadres,Stad,Straat");
 
-        filterToCheck.addValueChangeListener(event -> {
-            if(event.getValue() == true) {
+        proformaStatusFilter.setItems("","Geen Status","Te controleren","Goedgekeurd","Afgekeurd");
+        finalStatusFilter.setItems(FINAL_INVOICE_STATUS.values());
+        finalStatusFilter.setItemLabelGenerator(FINAL_INVOICE_STATUS::getDiscription);
+
+        proformaStatusFilter.addValueChangeListener(event -> {
+            if(event.getValue().matches("")) {
+                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
+                proFormaInvoiceGrid.getDataProvider().refreshAll();
+            } else if (event.getValue().matches("Geen Status")) {
                 addItemsToPendingWorkOrderGridFromFilter(
                         proFormaInvoiceList.stream()
                                 .filter(invoice -> invoice.getToCheck() != null)
                                 .filter(invoice ->
-                                        invoice.getToCheck().equals(filterToCheck.getValue()))
+                                        invoice.getToCheck().equals(false)&&invoice.getBApproved().equals(false)&&invoice.getBRejected().equals(false))
                                 .collect(Collectors.toList()));
             }
-            else{
-                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
-                proFormaInvoiceGrid.getDataProvider().refreshAll();
-            }
-        });
-
-        filterApproved.addValueChangeListener(event -> {
-            if(event.getValue() == true) {
+            else if (event.getValue().matches("Te controleren")) {
                 addItemsToPendingWorkOrderGridFromFilter(
                         proFormaInvoiceList.stream()
-                                .filter(invoice -> invoice.getBApproved() != null)
+                                .filter(invoice -> invoice.getToCheck() != null)
                                 .filter(invoice ->
-                                        invoice.getBApproved().equals(filterApproved.getValue()))
+                                        invoice.getToCheck().equals(true))
                                 .collect(Collectors.toList()));
             }
-            else{
-                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
-                proFormaInvoiceGrid.getDataProvider().refreshAll();
-            }
-        });
-
-        filterRejected.addValueChangeListener(event -> {
-            if(event.getValue() == true) {
+            else if (event.getValue().matches("Goedgekeurd")) {
                 addItemsToPendingWorkOrderGridFromFilter(
                         proFormaInvoiceList.stream()
-                                .filter(invoice -> invoice.getBRejected() != null)
+                                .filter(invoice -> invoice.getToCheck() != null)
                                 .filter(invoice ->
-                                        invoice.getBRejected().equals(filterRejected.getValue()))
+                                        invoice.getBApproved().equals(true))
+                                .collect(Collectors.toList()));
+            }
+            else if (event.getValue().matches("Afgekeurd")) {
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getToCheck() != null)
+                                .filter(invoice ->
+                                        invoice.getBRejected().equals(true))
+                                .collect(Collectors.toList()));
+            }
+
+            }
+        );
+
+        finalStatusFilter.addValueChangeListener(event -> {
+            if(event.getValue().equals(FINAL_INVOICE_STATUS.OPEN)){
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getOpen() != null)
+                            .filter(invoice ->
+                        invoice.getOpen().equals(true))
+                        .collect(Collectors.toList()));
+            }
+            else if(event.getValue().equals(FINAL_INVOICE_STATUS.PAID)){
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getPaid() != null)
+                                .filter(invoice ->
+                                        invoice.getPaid().equals(true))
+                                .collect(Collectors.toList()));
+            }
+            else if(event.getValue().equals(FINAL_INVOICE_STATUS.EXPIRED)){
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList.stream()
+                                .filter(invoice -> invoice.getExpired() != null)
+                                .filter(invoice ->
+                                        invoice.getExpired().equals(true))
                                 .collect(Collectors.toList()));
             }
             else{
-                addItemsToPendingWorkOrderGridFromFilter(proFormaInvoiceList);
-                proFormaInvoiceGrid.getDataProvider().refreshAll();
+                addItemsToPendingWorkOrderGridFromFilter(
+                        proFormaInvoiceList);
             }
         });
 
@@ -153,41 +195,70 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
     private Grid<Invoice> setUpGrid() {
         proFormaInvoiceGrid = new Grid<>();
         proFormaInvoiceList = new ArrayList<>();
-        Grid.Column<Invoice> columnInvoiceNumber = proFormaInvoiceGrid.addColumn(invoice -> invoice.getInvoiceNumber()).setHeader("Nummer").setAutoWidth(true);
-        Grid.Column<Invoice> columnCustomer = proFormaInvoiceGrid.addColumn(invoice -> invoice.getWorkAddress().getAddressName()).setHeader("Klant").setAutoWidth(true);
-        Grid.Column<Invoice> columnInvoiceDate = proFormaInvoiceGrid.addColumn(invoice -> invoice.getInvoiceDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).setHeader("Datum").setAutoWidth(true);
-        Grid.Column<Invoice> columnToCheck = proFormaInvoiceGrid.addComponentColumn(item -> {
-            Checkbox checkbox = new Checkbox();
-            if (item.getToCheck() != null) {
-                checkbox.setValue(item.getToCheck());
-            } else {
-                checkbox.setValue(false);
-            }
-            checkbox.setEnabled(false);
-            return checkbox;
-        }).setHeader("Te Controleren").setAutoWidth(true);
-        Grid.Column<Invoice> columnApproved = proFormaInvoiceGrid.addComponentColumn(item -> {
-            Checkbox checkbox = new Checkbox();
-            if(item.getBApproved() != null){
-                checkbox.setValue(item.getBApproved());
+        Grid.Column<Invoice> columnInvoiceNumber = proFormaInvoiceGrid.addColumn(invoice -> {
+            if(invoice.getBFinalInvoice() == true){
+                return invoice.getFinalInvoiceNumber();
             }
             else{
-                checkbox.setValue(false);
+                return invoice.getInvoiceNumber();
             }
-            checkbox.setEnabled(false);
-            return checkbox;
-        }).setHeader("Goedgekeurd").setAutoWidth(true);
-        Grid.Column<Invoice> columnRejected = proFormaInvoiceGrid.addComponentColumn(item -> {
-            Checkbox checkbox = new Checkbox();
-            if(item.getBRejected() != null){
-                checkbox.setValue(item.getBRejected());
+        }).setHeader("Nummer").setFlexGrow(1);
+        Grid.Column<Invoice> columnInvoiceDate = proFormaInvoiceGrid.addColumn(invoice -> invoice.getInvoiceDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).setHeader("Datum").setFlexGrow(1);
+        columnInvoicePaydate = proFormaInvoiceGrid.addColumn(invoice -> {
+            if(invoice.getPaymentDate() != null){
+                return invoice.getPaymentDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
             }
             else{
-                checkbox.setValue(false);
+                return "";
             }
-            checkbox.setEnabled(false);
-            return checkbox;
-        }).setHeader("Afgekeurd").setAutoWidth(true);
+        }).setHeader("Betaald op").setFlexGrow(1);
+
+        columnInvoiceEndDate = proFormaInvoiceGrid.addColumn(invoice -> {
+            if(invoice.getExpiryDate() != null){
+                return invoice.getExpiryDate().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+            }
+            else{
+                return "";
+            }
+        }).setHeader("Vervaldatum").setFlexGrow(1);
+
+        Grid.Column<Invoice> columnCustomer = proFormaInvoiceGrid.addColumn(invoice -> invoice.getWorkAddress().getAddressName()).setHeader("Klant").setFlexGrow(1);
+        totalPriceColumn = proFormaInvoiceGrid.addColumn(invoice -> {
+            return invoice.getProductList().stream()
+                    .filter(product -> product.getTotalPrice() != null)
+                    .mapToDouble(Product::getTotalPrice)
+                    .sum();
+        }).setHeader("Excl").setFlexGrow(1);
+
+        vatColumn = proFormaInvoiceGrid.addColumn(invoice -> {
+            return Math.round(
+                    invoice.getProductList().stream()
+                            .filter(product -> product.getTotalPrice() != null && product.getVat() != null)
+                            .mapToDouble(product ->
+                                    (product.getVat().getValue() / 100.0) * product.getTotalPrice()
+                            )
+                            .sum() * 100
+            ) / 100.0;
+        }).setHeader("Btw").setFlexGrow(1);
+
+        totalAndVatColumn = proFormaInvoiceGrid.addColumn(invoice -> {
+                Double amount = invoice.getProductList().stream()
+                .filter(product -> product.getTotalPrice() != null)
+                .mapToDouble(Product::getTotalPrice)
+                .sum();
+
+                Double vat = Math.round(
+                    invoice.getProductList().stream()
+                            .filter(product -> product.getTotalPrice() != null && product.getVat() != null)
+                            .mapToDouble(product ->
+                                    (product.getVat().getValue() / 100.0) * product.getTotalPrice()
+                            )
+                            .sum() * 100
+            ) / 100.0;
+            return amount + vat;
+        }).setHeader("Totaal").setFlexGrow(1);
+
+
 //        Grid.Column<Invoice> columnSubject = proFormaInvoiceGrid.addComponentColumn(invoice -> {
 //            TextArea textArea = new TextArea();
 //            textArea.setWidth("100%");
@@ -202,31 +273,47 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
 //            return textArea;
 //        }).setHeader("Omschrijving").setAutoWidth(true);
 
-        proFormaInvoiceGrid.addComponentColumn(item -> {
+        columnProformaStatus = proFormaInvoiceGrid.addComponentColumn(item -> {
             if((item.getBApproved() != null) && (item.getBApproved() == true)){
                 Span badge = new Span("Goedgekeurd");
                 badge.getElement().getThemeList().add("badge success");
+                badge.getStyle().set("width", "200px");
                 return badge;
             }
             if((item.getBRejected() != null) && (item.getBRejected() == true)){
                 Span badge = new Span("Afgekeurd");
                 badge.getElement().getThemeList().add("badge error");
+                badge.getStyle().set("width", "200px");
                 return badge;
             }
             if((item.getToCheck() != null) && (item.getToCheck() == true)){
                 Span badge = new Span("Te controleren");
                 badge.getElement().getThemeList().add("badge warning");
+                badge.getStyle().set("width", "200px");
                 return badge;
             }
             else{
-                Span badge = new Span("Te bekijken");
-                badge.getElement().getThemeList().add("badge base");
+                Span badge = new Span(" ");
+                badge.getStyle().set("background-color", "transparent");
+                badge.getStyle().set("width", "200px");
                 return badge;
             }
 
-        });
+        }).setHeader("Status").setFlexGrow(1);;
 
-        proFormaInvoiceGrid.addComponentColumn(item -> {
+         columnFinalStatus = proFormaInvoiceGrid.addComponentColumn(item -> {
+             //first alwasy check if invoice is expired
+             if(item.getPaid() == false){
+                 if(LocalDate.now().isAfter(item.getExpiryDate())){
+                     item.setExpired(true);
+                     item.setOpen(false);
+                     invoiceService.save(item);
+                 }
+             }
+             return getStatusBadgesforInvoice(item);
+        }).setHeader("Status").setFlexGrow(1);
+
+        removeColumn = proFormaInvoiceGrid.addComponentColumn(item -> {
             Button closeButton = new Button(VaadinIcon.TRASH.create());
             closeButton.addThemeVariants(ButtonVariant.LUMO_WARNING);
             closeButton.setAriaLabel("Verwijder factuur");
@@ -235,23 +322,110 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
                 deleteInvoiceNotification.open();
             });
             return closeButton;
-        }).setHeader("Verwijder").setAutoWidth(true);
+        }).setHeader("Verwijder").setFlexGrow(1);
+
+
 
         proFormaInvoiceGrid.addItemClickListener(event -> {
+            //generate event so the invoice can be opened from motherView.
             selectedInvoice = event.getItem();
             eventPublisher.publishEvent(new GetSelectedInvoiceEvent(this, selectedInvoice));
         });
 
         headerRow = proFormaInvoiceGrid.appendHeaderRow();
-        headerRow.getCell(columnInvoiceNumber).setComponent(filterName);
-        headerRow.getCell(columnToCheck).setComponent(filterToCheck);
-        headerRow.getCell(columnApproved).setComponent(filterApproved);
-        headerRow.getCell(columnRejected).setComponent(filterRejected);
-        //headerRow.getCell(columnSubject).setComponent(filterSubject);
+        headerRow.getCell(columnCustomer).setComponent(filterName);
+        headerRow.getCell(columnProformaStatus).setComponent(proformaStatusFilter);
+        headerRow.getCell(columnFinalStatus).setComponent(finalStatusFilter);
+
+        proFormaInvoiceGrid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        proFormaInvoiceGrid.addThemeVariants(GridVariant.LUMO_COLUMN_BORDERS);
 
         return proFormaInvoiceGrid;
     }
 
+    private com.vaadin.flow.component.Component getStatusBadgesforInvoice(Invoice item) {
+
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+
+        //add Status to HorizontalLayout
+        if((item.getOpen() != null) && (item.getOpen() == true)){
+            Span badge = new Span("Openstaand");
+            badge.getElement().getThemeList().add("badge success");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else if((item.getPaid() != null) && (item.getPaid() == true)){
+            Span badge = new Span("Betaald");
+            badge.getElement().getThemeList().add("badge success");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else if((item.getExpired() != null) && (item.getExpired() == true)){
+            Span badge = new Span("Vervallen");
+            badge.getElement().getThemeList().add("badge error");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else if((item.getReminder1() != null) && (item.getReminder1() == true)){
+            Span badge = new Span("Herinnering1");
+            badge.getElement().getThemeList().add("badge error");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else if((item.getReminder2() != null) && (item.getReminder2() == true)){
+            Span badge = new Span("Herinnering2");
+            badge.getElement().getThemeList().add("badge error");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else if((item.getReminder3() != null) && (item.getReminder3() == true)){
+            Span badge = new Span("Herinnering3");
+            badge.getElement().getThemeList().add("badge error");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        else{
+            Span badge = new Span("Geen status");
+            badge.getStyle().set("background-color", "transparent");
+            badge.getStyle().set("width", "100px");
+            horizontalLayout.add(badge);
+        }
+        //add amount of days next to it
+        Period period;
+        if(item.getPaid()){
+            if((item.getExpiryDate() != null) && (item.getPaymentDate() != null)){
+                period = Period.between(item.getPaymentDate(), item.getExpiryDate());
+                if(period.getDays() < 0 ){
+                    Span badge = new Span(""+ period.plusDays(2).getDays());
+                    badge.getElement().getThemeList().add("badge error");
+                    badge.getStyle().set("width", "100px");
+                    horizontalLayout.add(badge);
+                }
+                else{
+                    Span badge = new Span(""+ period.plusDays(2).getDays());
+                    badge.getElement().getThemeList().add("badge success");
+                    badge.getStyle().set("width", "100px");
+                    horizontalLayout.add(badge);
+                }
+            }
+        }
+        else{
+            period = Period.between(LocalDate.now(), item.getExpiryDate());
+            if(period.getDays() < 0 ){
+                Span badge = new Span(""+ period.plusDays(2).getDays());
+                badge.getElement().getThemeList().add("badge error");
+                badge.getStyle().set("width", "100px");
+                horizontalLayout.add(badge);
+            }
+            else{
+                Span badge = new Span(""+ period.plusDays(2).getDays());
+                badge.getElement().getThemeList().add("badge success");
+                badge.getStyle().set("width", "100px");
+                horizontalLayout.add(badge);
+            }
+        }
+        return horizontalLayout;
+    }
 
     public void addItemsToProformaGrid(List<Invoice>invoiceList){
         if((invoiceList != null) && (invoiceList.size() > 0)){
@@ -336,6 +510,28 @@ public class CurrentInvoiceSubView extends VerticalLayout implements BeforeEnter
     public Optional<Set<Invoice>> getSelectedWorkOrders(){
         Set<Invoice> selectedItems = proFormaInvoiceGrid.getSelectedItems();
         return Optional.of(selectedItems);
+    }
+
+    public void viewAsProformaInvoices(){
+        columnProformaStatus.setVisible(true);
+        removeColumn.setVisible(true);
+        columnFinalStatus.setVisible(false);
+        columnInvoicePaydate.setVisible(false);
+        columnInvoiceEndDate.setVisible(false);
+        totalPriceColumn.setVisible(false);
+        vatColumn.setVisible(false);
+        totalAndVatColumn.setVisible(false);
+    }
+
+    public void viewAsFinalWorkOrders(){
+        columnProformaStatus.setVisible(false);
+        removeColumn.setVisible(false);
+        columnFinalStatus.setVisible(true);
+        columnInvoicePaydate.setVisible(true);
+        columnInvoiceEndDate.setVisible(true);
+        totalPriceColumn.setVisible(true);
+        vatColumn.setVisible(true);
+        totalAndVatColumn.setVisible(true);
     }
 
 

@@ -3,11 +3,9 @@ package com.adverto.dejonghe.application.views.invoice;
 import com.adverto.dejonghe.application.customEvents.GetSelectedInvoiceEvent;
 import com.adverto.dejonghe.application.customEvents.ReloadProductListEvent;
 import com.adverto.dejonghe.application.dbservices.InvoiceService;
-import com.adverto.dejonghe.application.entities.enums.invoice.InvoiceStatus;
 import com.adverto.dejonghe.application.entities.invoice.Invoice;
 import com.adverto.dejonghe.application.views.subViews.CurrentInvoiceSubView;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
@@ -19,7 +17,6 @@ import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 
 @PageTitle("ProForma Facturatie")
@@ -41,9 +38,10 @@ public class ProformaInvoiceView extends Div implements BeforeEnterObserver {
     }
 
     private void loadData(){
-        Optional<List<Invoice>> allInvoicesByStatus = invoiceService.getAllInvoicesByStatus(InvoiceStatus.PROFORMA);
+        Optional<List<Invoice>> allInvoicesByStatus = invoiceService.getAllInvoicesByFinalInvoice(false);
         if(allInvoicesByStatus.isPresent()){
             currentInvoiceSubView.addItemsToProformaGrid(allInvoicesByStatus.get());
+            currentInvoiceSubView.viewAsProformaInvoices();
             currentInvoiceSubView.setSizeFull();
             this.setSizeFull();
             this.add(currentInvoiceSubView);
